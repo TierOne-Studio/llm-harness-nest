@@ -47,7 +47,7 @@ Q2: Should the state reset per HTTP request, or per injection site?
 - A provider that accumulates request-scoped state (e.g., a transactional unit-of-work, a request-correlation ID).
 - A provider that *itself* depends on the `REQUEST` injection token (`@Inject(REQUEST) private req`).
 
-In **this repo** specifically, `REQUEST` scope would simplify pieces that currently thread the session/org through every method call. A request-scoped `OrgContext` provider could replace passing `organizationId` as a parameter to every repository method. That's a future refactor opportunity — not done today.
+For example, in a codebase that threads the session/org through every method call, `REQUEST` scope can simplify things: a request-scoped `OrgContext` provider could replace passing `organizationId` as a parameter to every repository method. Whether that trade-off is worth it depends on your repo.
 
 ## When `REQUEST` scope is WRONG (the 90% case)
 
@@ -97,11 +97,11 @@ For most app code, `TRANSIENT` is wrong. If you're tempted to use it, ask whethe
 
 6. **Reading session in a singleton service via a global** — looks like it works in dev (one user), explodes in prod (multiple concurrent requests sharing global state). If you need per-request state, use `REQUEST` scope or pass it as an argument; never reach for module-level mutable variables.
 
-## Repo-fit examples
+## Illustrative examples
 
-- `DatabaseService` — singleton (correct). One DB pool, app-wide.
-- `PermissionsGuard` — singleton (default for guards). Reads request data via `ExecutionContext`, not via injected state.
-- `resolveOrgScope()` (utility, not a provider) — pure function, takes the request as an argument. No scope question.
+- A `DatabaseService` — singleton (correct). One DB pool, app-wide.
+- An `RbacGuard` — singleton (default for guards). Reads request data via `ExecutionContext`, not via injected state.
+- An org-scope resolver utility (a pure function, not a provider) — takes the request as an argument. No scope question.
 - **Hypothetical refactor:** a request-scoped `OrgContext` provider that holds `{ organizationId, effectiveRole }` once per request. Could simplify repository signatures. Cost: every consumer of `OrgContext` becomes request-scoped; benefit: less argument-threading. Trade-off discussion is for `architect-reviewer` if proposed.
 
 ## Cross-references
@@ -109,4 +109,4 @@ For most app code, `TRANSIENT` is wrong. If you're tempted to use it, ask whethe
 - [factory-providers.md](factory-providers.md) — `useFactory` providers can also declare scope.
 - [cross-cutting.md](cross-cutting.md) — guards/interceptors read `request` directly without needing request-scoped DI.
 - `nestjs-best-practices` § DI — `di-scope-awareness`.
-- `repo-conventions` § "RBAC scope contract" — how org/role data flows through the request today.
+- `repo-conventions` — how org/role data flows through the request in your repo.

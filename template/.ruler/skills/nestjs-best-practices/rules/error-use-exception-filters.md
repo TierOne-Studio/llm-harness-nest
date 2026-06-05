@@ -9,13 +9,13 @@ tags: error-handling, exception-filters, consistency
 
 Errors in HTTP endpoints get consistent, structured responses. Controllers don't manually format error JSON; they throw, and a single mechanism handles the mapping to HTTP.
 
-> ⚠️ **Skill-vs-repo conflict resolution (per `CLAUDE.md` P3.5):** This rule recommends adding a global `AllExceptionsFilter`. **The repo currently has no global exception filter** (per `CLAUDE.md` P2 + `repo-conventions` § "Error handling"). Adding one is a **structural refactor** — it changes app-wide error mapping, affects every existing route, and isn't tied to a specific PR's scope.
+> ⚠️ **Skill-vs-repo conflict resolution:** This rule recommends adding a global `AllExceptionsFilter`. If your repo currently has no global exception filter (check `repo-conventions` § "Error handling"), adding one is a **structural refactor** — it changes app-wide error mapping, affects every existing route, and isn't tied to a specific PR's scope.
 >
 > **Default for the current PR:** follow `repo-conventions` (Approach A below). Throw NestJS built-in exceptions; let the framework auto-map. Don't introduce a global filter as a side-effect of unrelated work.
 >
 > **If the change is explicitly about adopting centralized error handling**, that's a deliberate structural decision — switch to Approach B and ASK the user first.
 >
-> **For all other cases, recommend the global-filter adoption as a Future task** in the response's Optional Improvements section (per `CLAUDE.md` P8 item 10).
+> **For all other cases, recommend the global-filter adoption as a Future task** in the response's optional-improvements section.
 
 ## Outcome
 
@@ -44,14 +44,15 @@ export class UsersController {
   }
 }
 
-// Repo-specific scope check throws ForbiddenException (per repo-conventions § RBAC)
+// Authorization/validation checks throw the appropriate built-in exception
 @Get(':id/admin-data')
 async getAdminData(@Param('id') id: string, @Req() req): Promise<AdminData> {
-  const scope = resolveOrgScope(req);
-  if (scope.mode === 'all' && !req.user?.isSuperadmin) {
-    throw new BadRequestException('scope=all requires superadmin');
+  if (!req.query.scope) {
+    throw new BadRequestException('Missing required query parameter: scope');
   }
-  // ... 403 ForbiddenException for cross-org access automatically via PermissionsGuard
+  if (!req.user?.canAccess(id)) {
+    throw new ForbiddenException('Not authorized to access this resource');
+  }
   return this.adminService.find(id);
 }
 ```
@@ -93,7 +94,7 @@ export class UsersController {
 
 This is a HIGH finding regardless of which approach the repo uses — controllers should throw, not format JSON manually.
 
-**Anti-pattern specific to this repo (per `repo-conventions` § Error handling):** plain `Error(...)` from a service.
+**Anti-pattern (if your repo maps domain errors to HTTP at the boundary — see `repo-conventions` § Error handling):** plain `Error(...)` thrown from a service and left unmapped.
 
 ```typescript
 // ❌ Plain Error from a service becomes a 500 with no useful context
@@ -113,11 +114,11 @@ throw new BadRequestException('Cannot handle input: missing source');
 
 ## Approach B — Add a global `AllExceptionsFilter` ⚠️ Structural refactor — adoption-gated
 
-> ⚠️ **This is a structural change to the repo.** Adding a global filter affects every existing route's error response shape and is NOT scoped to a specific PR. Per `CLAUDE.md` P3.5, this should be its own deliberate task — not a side-effect of work in another module.
+> ⚠️ **This is a structural change to the repo.** Adding a global filter affects every existing route's error response shape and is NOT scoped to a specific PR. This should be its own deliberate task — not a side-effect of work in another module.
 >
 > **Before implementing**, ASK the user:
 >
-> > "This change would add a global `AllExceptionsFilter` to the application. The repo currently has no global filter (per `CLAUDE.md` P2). Adopting this affects error responses for ALL existing routes — it's a structural refactor that should be its own focused PR with regression testing.
+> > "This change would add a global `AllExceptionsFilter` to the application. If the repo currently has no global filter, adopting this affects error responses for ALL existing routes — it's a structural refactor that should be its own focused PR with regression testing.
 > >
 > > Options:
 > > - **(A)** Skip the global filter for this PR. Throw NestJS built-in exceptions; flag adoption as a Future task in Optional Improvements.
@@ -215,11 +216,11 @@ export class AppModule {}
 ```
 
 **Adoption checklist (when the user approves Approach B):**
-1. Add the filter classes in `src/shared/infrastructure/error-handling/` (new directory).
+1. Add the filter classes in a shared error-handling location (e.g., a new `error-handling/` directory under your shared infrastructure).
 2. Register globally in `main.ts` OR via `APP_FILTER` in `AppModule`.
 3. Add regression tests covering: 404 (NotFoundException), 403 (ForbiddenException), 400 (BadRequestException), 500 (uncaught Error).
 4. Verify existing test suite still passes — error response shapes may have changed.
-5. Update `CLAUDE.md` P2 + `repo-conventions` § Error handling to reflect the new convention.
-6. **Write `docs/decisions/ADR-NNN-global-exception-filter-adoption.md`** documenting context (what changed since `ADR-003`), decision, alternatives, consequences. Mark `ADR-003` as `Status: Superseded by ADR-NNN`. Update the index in `docs/decisions/README.md`. See `documentation-and-adrs`.
+5. Update `repo-conventions` § Error handling to reflect the new convention.
+6. **If your project records load-bearing decisions (e.g., an ADR log), write one documenting the supersede** — capture context (what changed since the prior no-global-filter decision), decision, alternatives, and consequences, and mark the prior decision superseded. See `documentation-and-adrs`.
 
 Reference: [NestJS Exception Filters](https://docs.nestjs.com/exception-filters)

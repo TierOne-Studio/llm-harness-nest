@@ -11,14 +11,14 @@ You want to write:
 adminPanel() { ... }
 ```
 
-…where `MinRoleGuard` is a Guard that internally needs DI (e.g., `RoleService`, `Reflector`). A naive factory:
+…where `MinRoleGuard` is a Guard that internally needs DI (e.g., a `RoleResolver` service, `Reflector`). A naive factory:
 
 ```ts
 // ❌ Anti-pattern — no DI on the inner class
 function MinRoleGuard(minRole: string): Type<CanActivate> {
   return class implements CanActivate {
     canActivate(ctx: ExecutionContext): boolean {
-      // No way to inject RoleService here. Stuck with hardcoded logic.
+      // No way to inject a RoleResolver here. Stuck with hardcoded logic.
       const userRole = ctx.switchToHttp().getRequest().user?.role
       return userRole === minRole  // brittle, no centralized rule
     }
@@ -40,12 +40,12 @@ export function MinRoleGuard(minRole: string): Type<CanActivate> {
   class _MinRoleGuard implements CanActivate {
     constructor(
       private readonly reflector: Reflector,   // ✅ injected
-      private readonly roleService: RoleService,  // ✅ injected
+      private readonly roleResolver: RoleResolver,  // ✅ injected
     ) {}
 
     canActivate(ctx: ExecutionContext): boolean {
-      const userRole = this.roleService.getEffectiveRole(ctx)
-      return this.roleService.compare(userRole, minRole) >= 0
+      const userRole = this.roleResolver.getEffectiveRole(ctx)
+      return this.roleResolver.compare(userRole, minRole) >= 0
     }
   }
 
@@ -79,16 +79,16 @@ Each `@UseGuards` call gets its own class with its own captured `minRole`, but t
 - **Unparameterized Guard** → just register the class:
   ```ts
   @Injectable()
-  export class PermissionsGuard implements CanActivate { ... }
+  export class RbacGuard implements CanActivate { ... }
   // Use directly:
-  @UseGuards(PermissionsGuard)
+  @UseGuards(RbacGuard)
   ```
-- **Parameterization via metadata decorator** → `@RequirePermissions('verb:resource')` + `Reflector.get(...)` inside an unparameterized guard is usually cleaner than `mixin()`. This is the pattern used by `PermissionsGuard` in this repo.
+- **Parameterization via metadata decorator** → `@RequirePermissions('verb:resource')` + `Reflector.get(...)` inside an unparameterized guard is usually cleaner than `mixin()`. This is a common RBAC-guard pattern.
 - **Parameterizing services** → that's a config provider concern, not a mixin concern. Use `useFactory` (see [factory-providers.md](factory-providers.md)).
 
-## When metadata is the better choice (this repo's existing pattern)
+## When metadata is the better choice (a common RBAC pattern)
 
-Look at `src/shared/guards/permissions.guard.ts` + `src/shared/decorators/permissions.decorator.ts`. The pattern is:
+A typical RBAC setup pairs a guard with a metadata decorator (e.g., `src/shared/guards/rbac.guard.ts` + `src/shared/decorators/require-permissions.decorator.ts`). The pattern is:
 
 ```ts
 // Decorator stores metadata
@@ -97,8 +97,8 @@ export const RequirePermissions = (...perms: string[]) =>
 
 // Guard reads metadata via Reflector
 @Injectable()
-export class PermissionsGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector, private readonly roleService: RoleService) {}
+export class RbacGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector, private readonly roleResolver: RoleResolver) {}
   canActivate(ctx: ExecutionContext): boolean {
     const required = this.reflector.get<string[]>(PERMISSIONS_KEY, ctx.getHandler())
     // ...
@@ -106,7 +106,7 @@ export class PermissionsGuard implements CanActivate {
 }
 
 // Usage
-@UseGuards(PermissionsGuard)
+@UseGuards(RbacGuard)
 @RequirePermissions('read:project')
 @Get(':id')
 findOne() {}
@@ -118,7 +118,7 @@ This is **simpler than mixin()** when the guard is registered once and parameter
 
 | Need | Use |
 |---|---|
-| Same guard, route-specific data declared at the route | **Metadata + Reflector** (this repo's pattern) |
+| Same guard, route-specific data declared at the route | **Metadata + Reflector** (the common RBAC pattern) |
 | Guard takes a runtime value (computed, env-derived, dynamic) | **`mixin()`** |
 | Multiple parameterizations of same guard with DI | **`mixin()`** |
 | One-off, no DI needed | Plain factory returning anonymous class |
@@ -138,5 +138,5 @@ This is **simpler than mixin()** when the guard is registered once and parameter
 ## Cross-references
 
 - [cross-cutting.md](cross-cutting.md) — guards/interceptors/pipes/middleware decision tree.
-- `repo-conventions` § "RBAC scope contract" — how the existing `PermissionsGuard` uses metadata-based parameterization.
+- `repo-conventions` — how your repo's RBAC guard uses metadata-based parameterization.
 - `nestjs-best-practices` § DI rules.

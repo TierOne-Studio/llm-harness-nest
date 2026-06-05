@@ -60,7 +60,7 @@ Before writing the per-step plan, sketch what depends on what. The dependency gr
 ```
 Database / entity / migration
     │
-    ├── Repository (TypeORM or raw-SQL per ADR-001)
+    ├── Repository (per your persistence convention)
     │       │
     │       └── Service / domain logic
     │               │

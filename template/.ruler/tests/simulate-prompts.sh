@@ -19,8 +19,9 @@
 
 set -uo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-cd "$PROJECT_DIR"
+# Validate the SHIPPED template tree directly (no `ruler apply` needed).
+RULER_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+INSTRUCTIONS="$RULER_DIR/instructions.md"
 
 PASS=0
 FAIL=0
@@ -32,7 +33,7 @@ STOP_WORDS="the a an this that these those is are was were be been being have ha
 # Returns description (single line) for a given skill name.
 skill_description() {
   local name="$1"
-  local f=".claude/skills/$name/SKILL.md"
+  local f="$RULER_DIR/skills/$name/SKILL.md"
   if [ ! -f "$f" ]; then
     echo ""
     return
@@ -97,7 +98,7 @@ check_case() {
 check_workflow_chain_mentions() {
   local case_name="$1" expected_skills_csv="$2"
   local section
-  section=$(awk '/^## Workflow chains/{flag=1} flag; /^## /{if(NR>1 && flag && !/^## Workflow chains/) flag=0}' CLAUDE.md)
+  section=$(awk '/^## Workflow chains/{flag=1} flag; /^## /{if(NR>1 && flag && !/^## Workflow chains/) flag=0}' "$INSTRUCTIONS")
   IFS=',' read -ra arr <<< "$expected_skills_csv"
   for s in "${arr[@]}"; do
     if printf '%s' "$section" | grep -q "$s"; then
@@ -235,7 +236,7 @@ run_case "repo-conventions-trigger" \
 # mention every expected skill so a senior engineer reading the chain table
 # sees the same recipe the model would assemble from description match.
 echo
-echo "=== Workflow-chain coverage (CLAUDE.md mentions every expected skill) ==="
+echo "=== Workflow-chain coverage (instructions.md mentions every expected skill) ==="
 check_workflow_chain_mentions "bug-fix-flow"      "bug-investigation,failure-mode-analysis,tdd-workflow,repo-conventions,design-review"
 check_workflow_chain_mentions "new-feature-flow"  "plan-mode,failure-mode-analysis,tdd-workflow,repo-conventions,design-review"
 check_workflow_chain_mentions "refactor-flow"     "code-simplifier,cyclomatic-complexity,repo-conventions,design-review"

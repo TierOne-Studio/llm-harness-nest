@@ -9,7 +9,7 @@ tags: performance, caching, redis, optimization
 
 Implement caching for expensive operations, frequently accessed data, and external API calls. Use appropriate TTLs and explicit invalidation. Don't cache everything — focus on high-impact areas.
 
-> ⚠️ **Skill-vs-repo conflict resolution (per `CLAUDE.md` P3.5):** This rule's library-backed approach (`KeyvRedis`, `@nestjs/cache-manager`) requires installing dependencies that **are NOT in this repo's `package.json`** AND requires Redis infrastructure the repo doesn't currently run.
+> ⚠️ **Skill-vs-repo conflict resolution:** This rule's library-backed approach (`KeyvRedis`, `@nestjs/cache-manager`) requires installing dependencies AND requires Redis infrastructure. If your repo has no caching layer and a cache store isn't provisioned, adopting caching is a structural decision — ask first.
 >
 > **Default for the current PR:** follow Approach A (in-memory cache, no new deps). Don't introduce Redis as a side-effect of unrelated work.
 >
@@ -26,7 +26,7 @@ Implement caching for expensive operations, frequently accessed data, and extern
 
 > Before writing any code, ASK the user:
 >
-> > "This change adds caching. The api-velocity repo currently has no caching layer and Redis is not provisioned for this service.
+> > "This change adds caching. If your repo has no caching layer and a cache store (e.g., Redis) isn't provisioned for this service, adopting caching is a structural decision.
 > >
 > > Options:
 > > - **(A) In-process cache (no new deps)** — a small Map-backed `CacheService` with TTL eviction. Works for one instance; cache is per-process (warm-up on restart, not shared across replicas). Sufficient for non-clustered deployments and for caches whose stale tolerance is short.
@@ -126,12 +126,12 @@ If any of those caveats is unacceptable for the use case, the answer is Approach
 
 ## Approach B — Distributed cache via `@nestjs/cache-manager` + `@keyv/redis` ⚠️ Structural — adoption-gated
 
-> ⚠️ **This adds two npm dependencies and requires Redis.** Per `CLAUDE.md` P0.2/P0.3, package installation requires explicit user approval. Per `repo-conventions`, infrastructure changes (new external service) are NOT in scope for unrelated PRs. **Ask first.**
+> ⚠️ **This adds two npm dependencies and requires Redis.** Package installation requires explicit user approval, and infrastructure changes (new external service) are NOT in scope for unrelated PRs. **Ask first.**
 
 **Adoption checklist (when the user approves Approach B):**
 
 1. Confirm Redis is provisioned for the target environment (local dev, staging, prod). Add `REDIS_URL` to env config + secrets.
-2. Install: `npm install @nestjs/cache-manager cache-manager @keyv/redis keyv`. The `Awaiting approval` line for the install MUST appear in the commit/PR trail (the security-reviewer's dep-gate audit checks this).
+2. Install: `npm install @nestjs/cache-manager cache-manager @keyv/redis keyv`. Get explicit user approval for the dependency install before running it.
 3. Wire the module:
 
    ```typescript
@@ -155,7 +155,7 @@ If any of those caveats is unacceptable for the use case, the answer is Approach
 
 4. Replace `CacheService` usages with the `CACHE_MANAGER` token where Redis-backing is needed; keep the `CacheService` for cases where in-process is fine to avoid Redis chatter on hot paths.
 5. Add tests that exercise Redis (integration, with a real container or testcontainer) AND fallback behavior (Redis down → cache miss, not 500).
-6. Update `CLAUDE.md` P2 + `repo-conventions` to record the new infrastructure dependency.
+6. Update `repo-conventions` to record the new infrastructure dependency.
 
 ```typescript
 // Decorator-based caching (only available under Approach B)

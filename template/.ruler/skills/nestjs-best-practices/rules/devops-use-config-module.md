@@ -12,12 +12,12 @@ Environment configuration is centralized, validated at startup, and accessed via
 > ⚠️ **Approach gate (per `nestjs-best-practices/SKILL.md` "How rules are structured"):** This rule has two valid implementations. **Before writing any code, ASK the user which approach they prefer:**
 >
 > > "Environment configuration can be implemented two ways:
-> > - **Approach A — Custom abstraction (no new deps; ALREADY in this repo):** A custom `ConfigService` (`src/shared/config/config.service.ts`) that reads `process.env` once at construction and exposes typed getters with validation that throws on missing required vars.
+> > - **Approach A — Custom abstraction (no new deps):** A custom `ConfigService` (e.g. `src/shared/config/config.service.ts`) that reads `process.env` once at construction and exposes typed getters with validation that throws on missing required vars.
 > > - **Approach B — Library:** install `@nestjs/config` + `joi` for `ConfigModule.forRoot({ validationSchema })`, namespaced configs via `registerAs`, and `ConfigService.get()`.
 > >
 > > Which approach should I use?"
 >
-> Wait for explicit response. Do NOT silently choose. **In this repo, Approach A already exists** — the typical answer is "use the existing `ConfigService`."
+> Wait for explicit response. Do NOT silently choose.
 
 ## Outcome
 
@@ -26,12 +26,12 @@ Environment configuration is centralized, validated at startup, and accessed via
 - Type-safe access from consumers (no `string | undefined` bleeding through).
 - Per-environment files supported (`.env`, `.env.test`, etc.).
 
-## Approach A — Custom abstraction (already exists in this repo)
+## Approach A — Custom abstraction (no new deps)
 
-This repo's `ConfigService` (`src/shared/config/config.service.ts`) is the established pattern. Use it.
+A typical pattern is a custom `ConfigService` that reads env once and exposes typed getters with fail-fast validation.
 
 ```ts
-// src/shared/config/config.service.ts (already exists)
+// e.g. src/shared/config/config.service.ts
 @Injectable()
 export class ConfigService {
   private readonly authSecret: string;
@@ -75,7 +75,6 @@ export class DatabaseModuleProvider {
 - Zero new deps
 - Validation logic is plain TypeScript — easy to read
 - Throws on first missing env var at startup (fail-fast)
-- Compatible with existing repo patterns (follows the established convention)
 
 **To add a new env var:**
 1. Add a `requireEnv(...)` line in the constructor
@@ -115,7 +114,7 @@ const apiKey = process.env.SENDGRID_API_KY || 'default'; // Misspelled, fallback
 
 ## Approach B — Library: `@nestjs/config` + `joi` ⚠️ Adoption-gated
 
-> ⚠️ Adopting this approach adds `@nestjs/config` AND `joi` to `package.json`. **Do NOT implement this section without explicit user approval naming both packages.** This repo already has a working custom `ConfigService` — Approach B is only worth adopting if you need namespaced configs, complex schema validation, or multi-file env loading.
+> ⚠️ Adopting this approach adds `@nestjs/config` AND `joi` to `package.json`. **Do NOT implement this section without explicit user approval naming both packages.** Approach B is only worth adopting over a custom `ConfigService` if you need namespaced configs, complex schema validation, or multi-file env loading.
 
 ```typescript
 // Setup validated configuration

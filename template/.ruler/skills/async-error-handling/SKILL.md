@@ -74,7 +74,7 @@ if (failed.length > 0) this.logger.warn('partial source failure', { failedCount:
 return ok
 ```
 
-This pattern fits the chat agent in this repo: each data source is independent; one timeout shouldn't blank the response.
+This pattern fits any fan-out over independent sources (e.g. querying several data sources and merging results): one slow or failing source shouldn't blank the whole response.
 
 ## Try/catch placement: at the boundary
 

@@ -5,18 +5,18 @@ description: Use when designing or reviewing NestJS providers (`useFactory:` / a
 
 # NestJS Tactical Patterns
 
-Index skill for 5 NestJS-specific tactical patterns this codebase frequently encounters. Each pattern has its own file in [patterns/](patterns/) with full anti-pattern catalog, decision tree, and repo-fit examples.
+Index skill for 5 NestJS-specific tactical patterns a typical NestJS codebase frequently encounters. Each pattern has its own file in [patterns/](patterns/) with full anti-pattern catalog, decision tree, and illustrative examples.
 
 Read this SKILL.md to identify which pattern applies; then read the specific pattern file for the depth.
 
-This skill is for **repo-fit tactical guidance**. For comprehensive generic NestJS rules (40 rules across architecture, DI, security, perf, testing), see `nestjs-best-practices` instead. The two skills are complementary: `nestjs-best-practices` is the encyclopedia; `nestjs-patterns` is the tactical playbook with this codebase's actual files cited.
+This skill is for **tactical guidance**. For comprehensive generic NestJS rules (40 rules across architecture, DI, security, perf, testing), see `nestjs-best-practices` instead. The two skills are complementary: `nestjs-best-practices` is the encyclopedia; `nestjs-patterns` is the tactical playbook with concrete examples.
 
 ## Patterns (index)
 
 | Pattern | When to invoke | Depth |
 |---|---|---|
 | **factory-providers** | NestJS provider whose creation depends on env values, requires async initialization (DB, Redis, secret manager), or composes multiple existing providers. Reach for `useFactory:` instead of `useClass:`. | [patterns/factory-providers.md](patterns/factory-providers.md) |
-| **dynamic-modules** | Module needs runtime configuration from its consumer (`forRoot`/`forRootAsync`/`forFeature`/`register`) or `@Global()` consideration. RBAC's `TypeOrmModule.forFeature([...])` is the canonical example. | [patterns/dynamic-modules.md](patterns/dynamic-modules.md) |
+| **dynamic-modules** | Module needs runtime configuration from its consumer (`forRoot`/`forRootAsync`/`forFeature`/`register`) or `@Global()` consideration. `TypeOrmModule.forFeature([...])` is a canonical example. | [patterns/dynamic-modules.md](patterns/dynamic-modules.md) |
 | **cross-cutting** | Choosing between Guard / Pipe / Interceptor / Middleware for a cross-cutting concern. Pipeline order + decision tree to avoid the wrong-layer antipattern (authz in interceptor, validation in guard). | [patterns/cross-cutting.md](patterns/cross-cutting.md) |
 | **provider-scopes** | Provider needs per-request or per-injection state (multi-tenancy, `Scope.REQUEST`, `Scope.TRANSIENT`). Inverted skill: when to opt OUT of singleton, since NestJS providers are singletons by default. | [patterns/provider-scopes.md](patterns/provider-scopes.md) |
 | **mixins** | Parameterized Guard or Interceptor that needs DI (the `mixin()` helper from `@nestjs/common`). Non-obvious — most engineers don't know this exists. | [patterns/mixins.md](patterns/mixins.md) |
@@ -48,11 +48,11 @@ The full per-pattern mistake catalogs live in each pattern file. Three recurring
 - **Simple feature modules** whose providers and imports are fixed at module-definition time → static `@Module({...})`.
 - **Stateless services** → singleton scope (default) is correct; don't reach for `provider-scopes` here.
 - **Generic NestJS questions** (architectural rules, DI principles, framework idioms unrelated to these 5 specific patterns) → use `nestjs-best-practices`.
-- **Repo conventions** (NestJS exceptions vs. plain `Error`, RBAC scope contract, persistence choice) → use `repo-conventions`.
+- **Repo conventions** (NestJS exceptions vs. plain `Error`, RBAC contract, persistence choice) → use `repo-conventions`.
 
 ## Cross-references
 
 - `nestjs-best-practices` — comprehensive 40-rule encyclopedia (`arch-*`, `di-*`, `error-*`, `security-*`, `perf-*`, `api-*`, `test-*`, `db-*`, `micro-*`, `devops-*`).
-- `repo-conventions` — TypeORM-first persistence, RBAC scope contract, error handling, logger discipline.
-- `database-transactions` — when patterns touch multi-statement DB work (TypeORM `manager.transaction(...)` or raw-SQL `DatabaseService.transaction(...)`).
-- `CLAUDE.md` P3.4 mandatory matrix — when this skill fires alongside `tdd-workflow`, `failure-mode-analysis`, etc.
+- `repo-conventions` — persistence, RBAC contract, error handling, logger discipline (per your repo's conventions).
+- `database-transactions` — when patterns touch multi-statement DB work (e.g., TypeORM `manager.transaction(...)` or a raw-SQL `DatabaseService.transaction(...)`).
+- `CLAUDE.md` mandatory-skill matrix — when this skill fires alongside `tdd-workflow`, `failure-mode-analysis`, etc.

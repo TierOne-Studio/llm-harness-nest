@@ -20,7 +20,7 @@ For long-running tasks, retries with backoff, scheduled jobs, and decoupling fro
 > >
 > > For this change, do you want a real queue (A), simple async (B), or to keep it sync (C)?"
 >
-> Wait for explicit response. Do NOT silently choose A. **In api-velocity, no queue infrastructure exists today** — adopting a queue is a deliberate infrastructure-and-dep decision.
+> Wait for explicit response. Do NOT silently choose A. **If your repo has no queue infrastructure today, adopting a queue is a deliberate infrastructure-and-dependency decision — ask first.**
 
 ## Outcome
 
