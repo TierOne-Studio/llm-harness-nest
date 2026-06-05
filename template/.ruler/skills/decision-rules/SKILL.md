@@ -61,11 +61,11 @@ CLAUDE.md carries the highest-impact decisions as one-liners. This skill carries
 **Test for "structural":** would applying this best practice change code outside the current PR's scope? If yes → repo wins, recommend future task. If no → skill wins, apply now.
 
 **What is NOT structural** (best practice wins, no exception):
-- Throwing `NotFoundException` / `ForbiddenException` / `BadRequestException` instead of plain `Error` in NEW service code (per `ADR-003`).
+- Throwing `NotFoundException` / `ForbiddenException` / `BadRequestException` instead of plain `Error` in NEW service code (a common project convention — see `repo-conventions`).
 - Wrapping a multi-statement DB write in `db.transaction(...)` for the current change (per `database-transactions` skill).
 - Choosing the right Guard vs Pipe vs Interceptor for a NEW cross-cutting concern (per `nestjs-patterns`).
 - Using `useFactory:` for a NEW provider with env-driven creation.
-- Following the 4-layer module structure for a NEW domain module (per `ADR-009` + `nestjs-clean-architecture`).
+- Following the 4-layer module structure for a NEW domain module (see `nestjs-clean-architecture`).
 **Cross-reference:** This rule is the skill-side mirror of CLAUDE.md P3.5. Both must read the same way; a contradiction here is a docs bug — flag it via `lessons-curator`.
 **ADR coupling:** When the structural Approach is eventually adopted (either deferred to a Future task and then implemented, or chosen explicitly in the current PR), the adoption MUST include writing an ADR in `docs/decisions/ADR-NNN-<title>.md`. The Future-task entry in Optional Improvements should name the ADR explicitly: `Future task — adopt <practice> per <skill> § <rule>; write ADR-NNN documenting the rationale.` See `documentation-and-adrs`.
 

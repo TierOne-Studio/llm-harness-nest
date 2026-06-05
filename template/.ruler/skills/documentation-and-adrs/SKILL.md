@@ -52,9 +52,9 @@ ADRs are **append-only**. Don't edit accepted ADRs except to update Status (Acce
 
 **CLAUDE.md MUST NOT reference:**
 
-- ADR numbers (`ADR-001`, `ADR-002`, ...) — those live in `repo-conventions` § "ADR-backed conventions" + `docs/decisions/README.md`.
+- ADR numbers (`ADR-001`, `ADR-002`, ... — illustrative; substitute your repo's numbers) — those live in `repo-conventions` § "ADR-backed conventions" + `docs/decisions/README.md`.
 - File paths (`src/...`, `docs/...`, `.claude/skills/...`) — those live in skill/subagent files.
-- Code symbols, decorators, class names, function names (`@RequirePermissions`, `PermissionsGuard`, `@InjectRepository`, `resolveOrgScope`, etc.) — those live in skills with patterns + examples.
+- Code symbols, decorators, class names, function names (e.g. `OrderService`, `CreateOrderDto`, `@InjectRepository`, etc.) — those live in skills with patterns + examples.
 - Subagent internal step numbers (`code-reviewer Step 5`) — those are subagent implementation detail.
 
 **Where every new artifact gets cited (single-source-of-truth flow):**
@@ -83,9 +83,9 @@ For a new subagent: add to P4 verification matrix in CLAUDE.md if it's a review 
 
 ## How to cite ADRs from skills, CLAUDE.md, subagents
 
-When a skill or convention enforces an ADR-backed rule, MUST cite the ADR by number, not restate the rationale:
+When a skill or convention enforces an ADR-backed rule, MUST cite the ADR by number, not restate the rationale. The ADR number below is illustrative — substitute your repo's actual number:
 
-> ✅ "Per `ADR-003`, throw NestJS built-in exceptions; no global filter."
+> ✅ "Per `ADR-00X`, throw NestJS built-in exceptions; no global filter."
 > ❌ "Don't add a global filter. The repo doesn't have one because adding one would..."
 
 Skill content stays focused on *how to do it correctly today*. The ADR file holds *why this is the rule and what was rejected*.

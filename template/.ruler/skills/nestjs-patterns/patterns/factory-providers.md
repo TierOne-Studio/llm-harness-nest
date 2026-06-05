@@ -157,7 +157,7 @@ FeatureModule.forRootAsync({
 
 4. **Sync `useFactory` returning a Promise** — works but obscures the async-bootstrap dependency. Use an `async` factory so it's explicit.
 
-5. **Side-effect-only factory** — if the factory's purpose is bootstrapping and there's no useful return value, that work belongs in `OnModuleInit`, not in a provider. (The repo's migration services use `OnModuleInit` correctly — see `*.migration.ts` files.)
+5. **Side-effect-only factory** — if the factory's purpose is bootstrapping and there's no useful return value, that work belongs in `OnModuleInit`, not in a provider. (For example, migration services that run schema setup on startup typically implement `OnModuleInit` rather than a provider factory.)
 
 ## Cross-references
 

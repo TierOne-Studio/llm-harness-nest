@@ -53,7 +53,7 @@ Fix: resolve at the higher-priority layer (CLAUDE.md > hook > skill).
 
 ### 5. Dead skills
 
-Skill never fires. Either the trigger description doesn't match real prompts, or the situation it covers doesn't occur in this codebase.
+Skill never fires. Either the trigger description doesn't match real prompts, or the situation it covers doesn't occur in your codebase.
 
 Fix: rewrite trigger or remove.
 
@@ -63,7 +63,7 @@ CLAUDE.md is a pure router — it points to skills and subagents but does NOT en
 
 - Scan CLAUDE.md for `ADR-[0-9]{3}` regex matches → flag MED, propose moving citation to `repo-conventions` ADR table or the relevant meta-skill.
 - Scan for file paths (`src/`, `docs/`, `.claude/skills/`, `.claude/agents/`) → flag MED.
-- Scan for code symbols (decorators like `@RequirePermissions`, class names like `PermissionsGuard`, function names like `resolveOrgScope`) → flag MED. Boundary case: literal command tokens that ARE the rule (`git push`, `INSERT`, AI-attribution trailer strings) are allowed because the rule literally matches those strings.
+- Scan for code symbols (decorators like `@SomeDecorator`, class names like `SomeGuard`, function names like `someHelper`) → flag MED. Boundary case: literal command tokens that ARE the rule (`git push`, `INSERT`, AI-attribution trailer strings) are allowed because the rule literally matches those strings.
 - Scan for subagent internal step references (e.g., "see code-reviewer Step 5") → flag LOW.
 
 Fix: move the citation into the relevant skill or subagent file; CLAUDE.md keeps only the skill/subagent name. Each artifact citation lives in exactly one place.

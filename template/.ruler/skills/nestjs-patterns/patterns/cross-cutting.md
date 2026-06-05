@@ -79,7 +79,7 @@ Q4: Does it need to run BEFORE Nest's request lifecycle (raw body, CORS, CSRF, c
 - Feature flags ("is this user in the experiment?").
 - Mode gates ("is the system in maintenance mode?").
 
-**Repo example:** `PermissionsGuard` (`src/shared/guards/permissions.guard.ts`) reads `@RequirePermissions(...)` metadata, resolves the user's effective role, and returns `false` (→ 403 `ForbiddenException`) on mismatch.
+**Example:** an `RbacGuard` (e.g., `src/shared/guards/rbac.guard.ts`) reads `@RequirePermissions(...)` metadata, resolves the user's effective role, and returns `false` (→ 403 `ForbiddenException`) on mismatch.
 
 **Anti-pattern:** putting validation in a guard.
 ```ts
@@ -97,11 +97,11 @@ canActivate(ctx: ExecutionContext): boolean {
 
 **Use for:**
 - Parsing path/query params (`ParseIntPipe`, `ParseUUIDPipe`).
-- Validating request bodies (note: this repo does NOT use `class-validator`; see `repo-conventions`).
+- Validating request bodies (whether to use `class-validator` is a repo convention; see `repo-conventions`).
 - Defaults (`DefaultValuePipe`).
 - Custom transformations (e.g., trimming, normalizing case).
 
-**Repo note:** controllers in this repo trust TypeScript shapes and validate manually. If you add a pipe, it should still throw `BadRequestException` (NestJS built-in), never plain `Error`.
+**Note:** if your repo's controllers trust TypeScript shapes and validate manually, a pipe you add should still throw `BadRequestException` (NestJS built-in), never plain `Error`. Check `repo-conventions` for the error-handling convention.
 
 **Anti-pattern:** doing authorization in a pipe.
 ```ts
@@ -142,7 +142,7 @@ intercept(ctx: ExecutionContext, next: CallHandler) {
 **Use for:**
 - Raw body capture (e.g., for webhook signature verification — must run before body parsers).
 - CORS, helmet, CSRF (typically via existing libraries).
-- Request-ID assignment (if you don't have it elsewhere; this repo currently doesn't).
+- Request-ID assignment (if you don't have it elsewhere).
 - Rare: protocol-level concerns that aren't NestJS-aware.
 
 **Avoid for:** anything that needs `ExecutionContext` (route metadata, handler reference) — middleware doesn't have it. Use a guard or interceptor instead.
@@ -159,27 +159,27 @@ intercept(ctx: ExecutionContext, next: CallHandler) {
 1. **Authorization in interceptor / pipe / middleware** — wrong layer. Use a guard.
 2. **Validation in guard** — guards return boolean; throw `BadRequestException` from a pipe.
 3. **Response shaping in pipe** — pipes operate on inputs; use an interceptor for outputs.
-4. **Throwing plain `Error`** — always throw NestJS exceptions (per `repo-conventions` § "Error handling").
+4. **Throwing plain `Error`** — prefer NestJS exceptions (see `repo-conventions` for your repo's error-handling convention).
 5. **Reading `req.user` in middleware** — the auth/passport guard hasn't run yet at middleware time. Read `req.user` from a guard or interceptor.
 6. **Putting logging in middleware** — works, but loses route metadata. An interceptor with `@Reflector` access logs richer context.
 7. **Stuffing multiple concerns into a single interceptor** — split by responsibility.
 8. **Using `@UseGuards` globally without considering test impact** — global guards apply to E2E tests too unless overridden.
 
-## Repo-fit examples
+## Illustrative examples
 
-| Layer | File | Concern |
+| Layer | Example file | Concern |
 |---|---|---|
-| Guard | `src/shared/guards/permissions.guard.ts` | RBAC permission check |
+| Guard | `src/shared/guards/rbac.guard.ts` | RBAC permission check |
 | Guard | `src/shared/guards/roles.guard.ts` | Role-based gate |
 | Guard | `src/shared/guards/org-role.guard.ts` | Organization role gate |
-| Decorator (metadata) | `src/shared/decorators/permissions.decorator.ts` | `@RequirePermissions(...)` consumed by `PermissionsGuard` |
-| (no interceptors yet) | — | If you add request-id correlation or response-envelope shaping, an interceptor is the right layer |
-| (no middleware yet) | — | If you add webhook-signature verification, that's middleware (raw body) |
+| Decorator (metadata) | `src/shared/decorators/require-permissions.decorator.ts` | `@RequirePermissions(...)` consumed by an `RbacGuard` |
+| Interceptor | — | If you add request-id correlation or response-envelope shaping, an interceptor is the right layer |
+| Middleware | — | If you add webhook-signature verification, that's middleware (raw body) |
 
 ## Cross-references
 
-- `repo-conventions` § "RBAC scope contract" — how `PermissionsGuard` and `@RequirePermissions` work together.
-- `repo-conventions` § "Error handling" — always throw NestJS exceptions.
+- `repo-conventions` — how your repo's RBAC guard and `@RequirePermissions` work together.
+- `repo-conventions` — your repo's error-handling convention (prefer NestJS exceptions).
 - [mixins.md](mixins.md) — for parameterized guards (`RolesGuard(['admin'])`).
 - `nestjs-best-practices` § `api-use-pipes`, `api-use-interceptors`, `security-use-guards`.
-- `CLAUDE.md` P0.2 + P3.3 — auth/RBAC changes are high-risk and require restate + `security-reviewer`.
+- `CLAUDE.md` — auth/RBAC changes are typically high-risk and may require restate + `security-reviewer`.

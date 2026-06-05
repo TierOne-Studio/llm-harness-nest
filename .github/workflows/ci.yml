@@ -19,3 +19,5 @@ jobs:
       # No runtime dependencies — nothing to install. git is preinstalled on
       # GitHub runners and is required by the update/merge tests.
       - run: npm test
+      # Validate the shipped template stays structurally sound and project-agnostic.
+      - run: npm run test:harness

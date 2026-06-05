@@ -112,10 +112,10 @@ The async variant is what you almost always want when config comes from env. It 
 
 ### 4. `forFeature` — per-feature registration
 
-When a module exposes a generic capability that gets registered multiple times for different domains. **This repo already uses `forFeature` in RBAC** via TypeORM:
+When a module exposes a generic capability that gets registered multiple times for different domains. A typical example is `forFeature` with TypeORM:
 
 ```ts
-// src/modules/admin/rbac/rbac.module.ts
+// e.g. src/modules/<domain>/<domain>.module.ts
 @Module({
   imports: [TypeOrmModule.forFeature([RoleTypeOrmEntity, PermissionTypeOrmEntity])],
   providers: [
@@ -123,10 +123,10 @@ When a module exposes a generic capability that gets registered multiple times f
     { provide: 'IPermissionRepository', useClass: PermissionTypeOrmRepository },
   ],
 })
-export class RbacModule {}
+export class AccessControlModule {}
 ```
 
-`TypeOrmModule.forFeature([Entity])` registers the entities scoped to *this* module — `@InjectRepository(Entity)` then resolves to that registration. New modules following the TypeORM-first convention (per `repo-conventions`) will use this pattern.
+`TypeOrmModule.forFeature([Entity])` registers the entities scoped to *this* module — `@InjectRepository(Entity)` then resolves to that registration. Modules following a TypeORM-first convention (see `repo-conventions`) typically use this pattern.
 
 The same shape applies to any custom module that exposes a generic capability registered per-feature (e.g., a hypothetical `RateLimiterModule.forFeature({ name: 'auth-routes', limit: 5 })`). The pattern is: `forRoot` once, `forFeature` per consumer.
 
@@ -148,7 +148,7 @@ export class LoggerModule {}
 - Adding explicit imports to every consumer would be pure noise.
 
 **Do NOT use `@Global()` for:**
-- A module used in a few places — explicit `imports: [...]` makes the dependency visible (Explicitness over Magic, per CLAUDE.md P5).
+- A module used in a few places — explicit `imports: [...]` makes the dependency visible (Explicitness over Magic).
 - A module whose providers should be scoped to a feature.
 - A module just because "it's annoying to import."
 
@@ -170,15 +170,14 @@ A `@Global()` decorator is a confession that you didn't want to write `imports: 
 
 7. **Using `register()` for global-singleton modules** — by convention `register` implies multi-instance; `forRoot` implies singleton. Reversing this confuses readers even if Nest accepts both.
 
-## Repo-fit examples
+## Illustrative examples
 
-- `DatabaseModule` (`src/shared/infrastructure/database/database.module.ts`) — currently a static module exposing `DatabaseService`. If it ever needed per-tenant DB credentials, `forRootAsync` would be the move.
-- `ProjectsModule` and `ChatModule` — static feature modules. The known import-order coupling (Projects must come before Chat per `repo-conventions` § "Module load order") is a structural concern; dynamic modules wouldn't change that.
-- `RbacModule` — uses `TypeOrmModule.forFeature(...)` (see § 4 above).
+- A `DatabaseModule` (e.g., `src/shared/infrastructure/database/database.module.ts`) — a static module exposing a `DatabaseService`. If it ever needed per-tenant DB credentials, `forRootAsync` would be the move.
+- Static feature modules (e.g., a `ProjectsModule` and a `ChatModule`) — when one must load before another, that import-order coupling is a structural concern; dynamic modules wouldn't change that.
+- A module using `TypeOrmModule.forFeature(...)` (see § 4 above).
 
 ## Cross-references
 
 - [factory-providers.md](factory-providers.md) — what `useFactory` does inside `forRootAsync`.
 - `nestjs-best-practices` — `arch-feature-modules`, `arch-module-sharing`.
-- `repo-conventions` § "Module layout" — domain module structure for this repo.
-- `CLAUDE.md` P5 explicitness — `@Global()` discussion.
+- `repo-conventions` — domain module structure for your repo.
