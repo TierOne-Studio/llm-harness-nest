@@ -1,0 +1,29 @@
+name: Release
+
+# Publishes to npm when a version tag (v*) is pushed.
+# Prerequisites (one-time):
+#   1. The @tierone org must exist on npmjs.com.
+#   2. Add an automation token as the repo secret NPM_TOKEN
+#      (npmjs.com → Access Tokens → Generate → "Automation").
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # enables npm provenance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm test
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

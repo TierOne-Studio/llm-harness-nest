@@ -1,0 +1,47 @@
+{
+  "name": "@tierone/llm-harness-nest",
+  "version": "0.1.0",
+  "description": "LLM agent harness for NestJS projects — guides (skills, instructions) + sensors (review agents). Installs into .ruler/ via a 3-way-merge-aware CLI.",
+  "type": "module",
+  "bin": {
+    "llm-harness-nest": "bin/cli.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "template",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "llm",
+    "harness",
+    "harness-engineering",
+    "ai-agent",
+    "claude",
+    "claude-code",
+    "ruler",
+    "nestjs",
+    "skills",
+    "agents"
+  ],
+  "author": "TierOne Studio",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TierOne-Studio/llm-harness-nest.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TierOne-Studio/llm-harness-nest/issues"
+  },
+  "homepage": "https://github.com/TierOne-Studio/llm-harness-nest#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}
