@@ -118,6 +118,37 @@ test('user custom file is left untouched; upstream-deleted file is kept', () => 
   }
 });
 
+test('binary files are replaced with the upstream copy, not text-merged (no false conflict)', () => {
+  const w = world();
+  try {
+    writeInstalled(w.localRuler, { pkg: PKG, version: '1.0.0' });
+    // A binary file (contains NUL bytes) present on all three sides, with differing bytes.
+    const rel = 'skills/x/assets/logo.png';
+    const putBin = (dir, bytes) => {
+      const p = join(dir, rel);
+      mkdirSync(join(p, '..'), { recursive: true });
+      writeFileSync(p, Buffer.from(bytes));
+    };
+    putBin(w.baseDir, [0x89, 0x50, 0x00, 0x01]);
+    putBin(w.localRuler, [0x89, 0x50, 0x00, 0x02]); // user's differs from base
+    putBin(w.remoteDir, [0x89, 0x50, 0x00, 0x03]); // upstream differs again
+
+    const res = update({
+      cwd: w.cwd,
+      remoteDir: w.remoteDir,
+      current: { package: PKG, version: '2.0.0' },
+      baseProvider: () => w.baseDir,
+    });
+
+    assert.equal(res.status, 'updated', 'binary diff must not produce a conflict');
+    assert.equal(res.versionAdvanced, true, 'version advances despite binary diff');
+    const got = readFileSync(join(w.localRuler, rel));
+    assert.deepEqual([...got], [0x89, 0x50, 0x00, 0x03], 'local binary replaced with upstream bytes');
+  } finally {
+    rmSync(w.root, { recursive: true, force: true });
+  }
+});
+
 test('files added on BOTH sides (absent from base) merge against an empty ancestor', () => {
   const w = world();
   try {
