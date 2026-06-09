@@ -39,15 +39,20 @@ assert_true() {
   fi
 }
 
+# agent_has_tool <agent-file> <Tool> — true if the YAML frontmatter grants <Tool>.
+agent_has_tool() {
+  awk '/^---$/{c++; next} c==1' "$1" | grep -qE "^[[:space:]]*-[[:space:]]+$2[[:space:]]*$"
+}
+
 # The canonical skills shipped by this harness.
 SKILL_LIST="async-error-handling bug-investigation code-simplifier cross-repo-workspace \
 cyclomatic-complexity database-transactions db-write-protocol decision-rules design-review \
 documentation-and-adrs failure-mode-analysis git-workflow js-performance-patterns \
 meta-skill-hygiene nestjs-best-practices nestjs-clean-architecture nestjs-patterns \
 nodejs-best-practices plan-mode pushback-templates repo-conventions rlm-explore \
-tdd-workflow typescript-advanced-types"
+spec-workflow tdd-workflow typescript-advanced-types"
 
-AGENT_LIST="architect-reviewer code-reviewer qa-validator security-reviewer lessons-curator"
+AGENT_LIST="architect-reviewer code-reviewer qa-validator security-reviewer lessons-curator acceptance-verifier spec-steward"
 
 # ---------------------------------------------------------------------------
 echo "=== T1: Structure — instructions, ruler config, every skill + agent present ==="
@@ -140,7 +145,7 @@ assert_true "T6: nestjs-best-practices retains rule files" \
 echo
 echo "=== T7: Skill-pointer cross-reference integrity (named skills exist) ==="
 for s in tdd-workflow design-review plan-mode repo-conventions nestjs-best-practices \
-         nestjs-patterns nestjs-clean-architecture decision-rules; do
+         nestjs-patterns nestjs-clean-architecture decision-rules spec-workflow; do
   assert_true "T7: instructions.md references '$s' AND its skill dir exists" \
     "grep -q '$s' '$INSTRUCTIONS' && test -d '$SKILLS/$s'"
 done
@@ -149,6 +154,17 @@ done
 echo
 echo "=== T8: No stray dev artifacts in the shipped template ==="
 assert_true "T8: no *.bak files under .ruler/" "[ \$(find '$RULER_DIR' -name '*.bak' | wc -l) -eq 0 ]"
+
+# ---------------------------------------------------------------------------
+echo
+echo "=== T9: Write-scope — spec-steward is the ONLY Edit/Write agent (no-leak guard) ==="
+assert_true "T9: spec-steward has Edit" "agent_has_tool '$AGENTS/spec-steward.md' Edit"
+assert_true "T9: spec-steward has Write" "agent_has_tool '$AGENTS/spec-steward.md' Write"
+for a in $AGENT_LIST; do
+  [ "$a" = "spec-steward" ] && continue
+  assert_true "T9: '$a' has NO Edit (read-only sensor)" "! agent_has_tool '$AGENTS/$a.md' Edit"
+  assert_true "T9: '$a' has NO Write (read-only sensor)" "! agent_has_tool '$AGENTS/$a.md' Write"
+done
 
 # ---------------------------------------------------------------------------
 echo
