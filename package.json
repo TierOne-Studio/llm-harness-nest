@@ -20,7 +20,12 @@
     "test": "node --test test/*.test.js",
     "test:harness": "bash template/.ruler/tests/run-acceptance.sh && bash template/.ruler/tests/simulate-prompts.sh",
     "catalog": "node scripts/build-skill-catalog.mjs",
-    "catalog:check": "node scripts/build-skill-catalog.mjs --check"
+    "catalog:check": "node scripts/build-skill-catalog.mjs --check",
+    "eval": "node eval/routing-eval.mjs && node eval/adherence-eval.mjs",
+    "eval:routing": "node eval/routing-eval.mjs",
+    "eval:adherence": "node eval/adherence-eval.mjs",
+    "eval:mutation": "node scripts/mutation-test.mjs",
+    "eval:decay": "node scripts/context-decay.mjs"
   },
   "keywords": [
     "llm",
