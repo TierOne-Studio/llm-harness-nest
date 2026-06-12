@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: 'Also run evals on the consumer-grade model (Sonnet)'
+        type: boolean
+        default: false
 
 jobs:
   test:
@@ -13,6 +19,8 @@ jobs:
         node: [20, 22]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
@@ -21,3 +29,38 @@ jobs:
       - run: npm test
       # Validate the shipped template stays structurally sound and project-agnostic.
       - run: npm run test:harness
+      # The skill catalog is generated from frontmatter — fail if it's stale.
+      - run: npm run catalog:check
+
+  # Live-model evals: skill routing + gate adherence vs the committed per-model
+  # baselines (eval/baseline.json). The scripts self-skip (exit 0) when the
+  # secret is absent, so forks and secretless runs stay green on the
+  # deterministic suites. PRs gate on the Haiku (cost-floor) run; dispatch with
+  # full_matrix=true to also measure the consumer-grade model.
+  eval:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        model: ${{ github.event.inputs.full_matrix == 'true' && fromJSON('["claude-haiku-4-5-20251001","claude-sonnet-4-6"]') || fromJSON('["claude-haiku-4-5-20251001"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Routing + adherence evals (vs committed baseline)
+        run: |
+          node eval/routing-eval.mjs --model "${{ matrix.model }}" | tee eval-routing.log
+          node eval/adherence-eval.mjs --model "${{ matrix.model }}" --repeats 3 | tee eval-adherence.log
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - name: Upload score history artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-scores-${{ matrix.model }}-${{ github.run_number }}
+          path: eval-*.log
+          if-no-files-found: ignore
