@@ -229,6 +229,101 @@ test('clean dry run writes nothing and does not advance the sentinel', () => {
   }
 });
 
+test('force update overwrites edited harness files, keeps custom files, advances sentinel — no baseProvider needed', () => {
+  const w = world();
+  try {
+    writeInstalled(w.localRuler, { pkg: PKG, version: '1.0.0' });
+    put(w.localRuler, 'instructions.md', 'user-edited\n'); // harness file the user edited
+    put(w.localRuler, 'mine.md', 'my own\n'); // user's own file
+    put(w.remoteDir, 'instructions.md', 'upstream v2\n');
+    put(w.remoteDir, 'skills/new/SKILL.md', 'brand new\n');
+
+    const res = update({
+      cwd: w.cwd,
+      remoteDir: w.remoteDir,
+      current: { package: PKG, version: '2.0.0' },
+      baseProvider: () => {
+        throw new Error('must not be called in force mode');
+      },
+      force: true,
+    });
+
+    assert.equal(res.status, 'updated');
+    assert.equal(res.forced, true);
+    assert.equal(res.versionAdvanced, true);
+    assert.deepEqual(res.conflicts, []);
+    assert.equal(read(w.localRuler, 'instructions.md'), 'upstream v2\n', 'edited harness file overwritten');
+    assert.equal(read(w.localRuler, 'mine.md'), 'my own\n', 'custom file kept');
+    assert.ok(existsSync(join(w.localRuler, 'skills/new/SKILL.md')), 'new file copied');
+    assert.equal(readInstalled(w.localRuler).version, '2.0.0', 'sentinel advanced');
+  } finally {
+    rmSync(w.root, { recursive: true, force: true });
+  }
+});
+
+test('force update proceeds even when installed version equals current (reinstall semantics)', () => {
+  const w = world();
+  try {
+    writeInstalled(w.localRuler, { pkg: PKG, version: '1.0.0' });
+    put(w.localRuler, 'instructions.md', 'user-edited\n');
+    put(w.remoteDir, 'instructions.md', 'pristine\n');
+    const res = update({
+      cwd: w.cwd,
+      remoteDir: w.remoteDir,
+      current: { package: PKG, version: '1.0.0' },
+      force: true,
+    });
+    assert.equal(res.status, 'updated');
+    assert.equal(read(w.localRuler, 'instructions.md'), 'pristine\n');
+  } finally {
+    rmSync(w.root, { recursive: true, force: true });
+  }
+});
+
+test('force dry run writes nothing and does not advance the sentinel', () => {
+  const w = world();
+  try {
+    writeInstalled(w.localRuler, { pkg: PKG, version: '1.0.0' });
+    put(w.localRuler, 'instructions.md', 'user-edited\n');
+    put(w.remoteDir, 'instructions.md', 'upstream v2\n');
+    const res = update({
+      cwd: w.cwd,
+      remoteDir: w.remoteDir,
+      current: { package: PKG, version: '2.0.0' },
+      force: true,
+      dryRun: true,
+    });
+    assert.equal(res.status, 'updated');
+    assert.equal(res.versionAdvanced, false);
+    assert.equal(read(w.localRuler, 'instructions.md'), 'user-edited\n', 'nothing written');
+    assert.equal(readInstalled(w.localRuler).version, '1.0.0');
+  } finally {
+    rmSync(w.root, { recursive: true, force: true });
+  }
+});
+
+test('unfetchable base version produces an actionable error naming `update --force`', () => {
+  const w = world();
+  try {
+    writeInstalled(w.localRuler, { pkg: PKG, version: '0.0.999' });
+    put(w.remoteDir, 'instructions.md', 'v2\n');
+    assert.throws(
+      () =>
+        update({
+          cwd: w.cwd,
+          remoteDir: w.remoteDir,
+          current: { package: PKG, version: '2.0.0' },
+          baseProvider: () => {
+            throw new Error('Could not download base version');
+          },
+        }),
+      /update --force/,
+    );
+  } finally {
+    rmSync(w.root, { recursive: true, force: true });
+  }
+});
+
 test('dry run reports conflicts without writing or advancing', () => {
   const w = world();
   try {
