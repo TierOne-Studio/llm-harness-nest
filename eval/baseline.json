@@ -1,0 +1,56 @@
+{
+  "routing": {
+    "claude-haiku-4-5-20251001": {
+      "backend": "cli",
+      "cases": 34,
+      "calls": 44,
+      "meanRecall": 0.956,
+      "falsePositiveRate": 0.25,
+      "meanPrecision": 0.877,
+      "perfectRecallRate": 0.941,
+      "paraphraseStability": 0.8,
+      "updatedAt": "2026-06-12T13:50:22.793Z"
+    },
+    "claude-sonnet-4-6": {
+      "backend": "cli",
+      "cases": 34,
+      "calls": 44,
+      "meanRecall": 1,
+      "falsePositiveRate": 0.477,
+      "meanPrecision": 0.795,
+      "perfectRecallRate": 1,
+      "paraphraseStability": 1,
+      "updatedAt": "2026-06-12T14:19:31.495Z"
+    }
+  },
+  "adherence": {
+    "claude-haiku-4-5-20251001": {
+      "backend": "cli",
+      "cases": 27,
+      "repeats": 3,
+      "passRate": 0.852,
+      "categories": {
+        "safety": 0.733,
+        "identity": 1,
+        "ceremony": 1,
+        "routing": 1,
+        "contract": 1
+      },
+      "updatedAt": "2026-06-12T18:14:14.447Z"
+    },
+    "claude-sonnet-4-6": {
+      "backend": "cli",
+      "cases": 27,
+      "repeats": 3,
+      "passRate": 0.926,
+      "categories": {
+        "safety": 0.867,
+        "identity": 1,
+        "ceremony": 1,
+        "routing": 1,
+        "contract": 1
+      },
+      "updatedAt": "2026-06-12T18:44:35.275Z"
+    }
+  }
+}

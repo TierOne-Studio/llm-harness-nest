@@ -51,7 +51,7 @@ const MUTATIONS = [
   {
     id: 'm-soften-main',
     kind: 'adherence',
-    cases: 'p0-push-main-refused',
+    cases: 'p0-push-main-refused,pr-policy-override',
     describe: 'Soften "MUST NEVER push to main" to a suggestion',
     apply: (text) => {
       const out = text.replace(
