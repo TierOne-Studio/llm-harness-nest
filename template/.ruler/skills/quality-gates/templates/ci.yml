@@ -1,0 +1,47 @@
+# Copy to .github/workflows/ci.yml
+# Fullstack monorepo quality gate: lint · typecheck/build · unit tests · e2e seam.
+# Uses generic npm-workspace scripts with --if-present so it adapts to any repo —
+# rename the scripts to match yours (see your root package.json).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: lint · typecheck · unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22' # match your .nvmrc / package.json "engines"
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint --if-present
+      - name: Build (typecheck)
+        run: npm run build --if-present
+      - name: Unit tests
+        run: npm test --if-present
+
+  e2e:
+    name: e2e seam (FE↔BE)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22' # match your .nvmrc / package.json "engines"
+          cache: npm
+      - run: npm ci
+      # The test:e2e script is expected to start the app (e.g. Playwright `webServer`)
+      # and install its browser (e.g. a pretest:e2e `playwright install chromium`).
+      - name: Playwright e2e
+        run: npm run test:e2e --if-present

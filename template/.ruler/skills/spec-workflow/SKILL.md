@@ -1,6 +1,10 @@
 ---
 name: spec-workflow
-description: Use BEFORE implementing any behavioral code change (new feature, improvement, bug fix, refactor that changes behavior, behavioral change, requirement-correction, follow-up) — a Markdown SPEC under docs/specs/ MUST be created or updated, and clarifying questions asked, BEFORE writing code; and reconciled with what shipped AFTER. Governs the docs/specs/ folder, SPEC naming, the SPEC template, create-vs-update rules, the requirements clarification gate, the pre/post workflow, and code↔doc sync. The spec-steward agent is the writer; this skill is the procedure. NOT for non-code, type-only, or config-with-no-behavior changes (state the waiver phrase). Pairs with documentation-and-adrs (ADRs), plan-mode, tdd-workflow, database-transactions, cross-repo-workspace.
+description: Use BEFORE implementing any behavioral code change (new feature, improvement, bug fix, refactor that changes behavior, behavioral change, requirement-correction, follow-up) — a Markdown SPEC under docs/specs/ MUST be created or updated, and clarifying questions asked, BEFORE writing code; and reconciled with what shipped AFTER. Governs the docs/specs/ folder, SPEC naming, the SPEC template, create-vs-update rules, the requirements clarification gate, the pre/post workflow, and code↔doc sync. The spec-steward agent is the writer; this skill is the procedure. NOT for non-code, type-only, or config-with-no-behavior changes (state the waiver phrase). Pairs with documentation-and-adrs (ADRs), plan-mode, tdd-workflow, database-transactions, acceptance-verifier, cross-repo-workspace.
+harness:
+  tier: shared
+  family: process
+  gist: "SPEC before code on behavioral changes; reconcile after"
 ---
 
 # Spec Workflow
@@ -22,15 +26,15 @@ On the first behavioral change in a project that has no `docs/specs/` yet, `spec
 
 No external files are required — a scaffolded project gets the full workflow from this skill.
 
-## Where specs live (per-repo, split by layer)
+## Where specs live
 
-- An **API / backend** repo holds **`contract`** specs: entities, relationships, endpoints, DTOs,
-  RBAC scopes, migrations.
-- A **UI** repo holds **`ui`** specs: screens, flows, forms, client validation, UX.
-- A cross-cutting feature has **one spec per layer**, cross-linked via the `counterpart_spec`
-  frontmatter field (`"<other-repo>#SPEC-NNN"`), bound by a coordination doc. See `cross-repo-workspace`.
-  One spec per (feature × layer) — never two for the same layer.
-- A **single-repo** project sets `counterpart_spec: "standalone"`.
+Specs in this repo are **`contract`** specs: entities, relationships, endpoints, DTOs, RBAC scopes,
+migrations. The `layer` frontmatter field is always `contract`.
+
+- A feature that also spans the **sibling frontend repo** carries one spec per repo, cross-linked
+  via the `counterpart_spec` frontmatter field in the `"<other-repo>#SPEC-NNN"` form — see
+  `cross-repo-workspace`. One spec per feature — never two.
+- A change confined to this repo has just the one spec; set `counterpart_spec: "standalone"`.
 
 ## Naming & location
 
@@ -55,31 +59,35 @@ SPEC waived — config change with no behavior impact.
 
 "small change", "obvious fix", "trivial", "just a refactor" are **NEVER** valid skips. A pure
 no-behavior refactor needs no new SPEC, but if one exists for that feature, add a Change Log note.
+The waiver-phrase pattern and its forbidden non-waivers are canonical in `tdd-workflow` § Waivers — new exemption categories must be added there first.
 
 ## PRE-coding workflow (before any implementation or test code)
 
-1. **Classify** the request; decide if it is behavioral (above). If exempt, state the waiver and stop here.
+1. **Classify** the request; decide if it is behavioral (above) and whether it also affects the sibling frontend repo (see `cross-repo-workspace`). If exempt, state the waiver and stop here.
 2. **Search** `docs/specs/README.md` + grep `docs/specs/` for a SPEC governing this feature/files. (Anti-duplicate.)
 3. **Resolve ambiguity — the clarification gate.** Scan for underspecification across: goal,
-   caller/role, scope, behavior (happy path + edge/error cases), data model
-   (cardinality/nullability/constraints), RBAC scopes, acceptance criteria, affected endpoints,
-   transaction boundaries. **Verify what the codebase already answers first**, then for each
-   remaining dimension decide Known / Assumable-safe / **Must-ask**. If any Must-ask remains, the
-   steward returns `NEEDS-INPUT` and the main agent **asks the user** (batched, ≤4). **Do NOT
-   write the SPEC or any code until material ambiguity is resolved.** Never ask what you can
-   verify in the code; never guess past a material ambiguity.
+   user/caller/role, scope, behavior (happy path + edge/error cases), data model
+   (cardinality/nullability/constraints/validation), RBAC scopes, acceptance criteria, affected
+   endpoints + DTOs, transaction boundaries. **Verify what the
+   codebase already answers first**, then for each remaining dimension decide Known /
+   Assumable-safe / **Must-ask**. If any Must-ask remains, the steward returns `NEEDS-INPUT` and the
+   main agent **asks the user** (batched, ≤4, options where possible). **Do NOT write the SPEC or
+   any code until material ambiguity is resolved.** Never ask what you can verify in the code;
+   never guess past a material ambiguity. This gate mirrors `plan-mode` § Step 0: when a change
+   needs both a SPEC and a plan, run the gate ONCE and record the assumptions in both artifacts.
 4. **Decide create vs update** — if a SPEC already covers this feature, UPDATE it; never open a second.
 5. **Create/update the SPEC** (via `spec-steward`) from `_template.md`. It must pass the readiness
-   rubric before leaving `Draft`: goal + caller; in- and out-of-scope; every AC falsifiable +
+   rubric before leaving `Draft`: goal + user/caller; in- and out-of-scope; every AC falsifiable +
    mapped to a planned test; data model fully typed; RBAC scopes stated; every named edge/error
    case has defined behavior; **no `TBD`/placeholder in a load-bearing section**. If an entity
    changes, a migration ships in the same change.
 6. **Load-bearing check** — if the change makes a decision that would force updating 3+
    skills/docs/files, also write/cite an **ADR** (`documentation-and-adrs`).
 7. **Architect review** — when the plan touches 3+ files OR auth/RBAC/data-migration/transaction
-   boundaries, route the SPEC through `architect-reviewer` (`APPROVE_PLAN`/`REVISE_PLAN`/`BLOCK`).
-   Revise on REVISE/BLOCK; no code until `APPROVE_PLAN`. Cross-repo: the architect reviews BOTH
-   specs + the coordination doc together.
+   boundaries/published-contract shape, route the SPEC through `architect-reviewer`
+   (`APPROVE_PLAN`/`REVISE_PLAN`/`BLOCK`). Revise on REVISE/BLOCK; no code until `APPROVE_PLAN`.
+   When a counterpart spec exists in the sibling frontend repo, the architect reviews this spec
+   together with the published API contract.
 8. **Present** the SPEC (or its diff) + the architect verdict + the plan, then STOP for approval.
 
 ## DURING coding
@@ -97,7 +105,7 @@ Delegate to `spec-steward` (it edits `docs/specs/**`):
 4. **Memory** — if an original assumption was wrong, the main agent also writes a `feedback` memory entry (P7).
 5. **Status** — `Draft` → `Implemented`.
 6. **Review chain** — `code-reviewer` + `qa-validator` (+ `security-reviewer` if applicable) + `spec-steward` + `acceptance-verifier`. The steward's `BLOCK` and `acceptance-verifier`'s `BLOCK` are binding on "done."
-7. If the project has the deterministic gate (below), CI `spec-gate` must be green; for cross-repo, the `counterpart_spec` links must resolve.
+7. If the project has the deterministic gate (below), CI `spec-gate` must be green; for a feature with a sibling-repo counterpart, the `counterpart_spec` links must resolve.
 
 ## Definition of done (spec dimension; extends P8.0)
 
@@ -114,14 +122,14 @@ scripts live **outside `.ruler/`**, so a harness-scaffolded project starts with 
 (this skill + `spec-steward` + `acceptance-verifier` + human PR review). To upgrade it to a **hard
 gate**, add to the project (recommended once the team relies on the workflow):
 
-- **`spec-gate`** — a behavioral `src/**/*.ts` change must ship with a `docs/specs/**` change, OR a
-  `[skip-spec: type-only|config-no-behavior|non-code]` waiver token in the commit/PR body.
-  ("small" / "obvious" / "trivial" are NEVER valid skips.)
+- **`spec-gate`** — a behavioral source change under `src/**` (`*.ts`, excluding tests/`*.d.ts`)
+  must ship with a `docs/specs/**` change, OR a `[skip-spec: type-only|config-no-behavior|non-code]`
+  waiver token in the commit/PR body. ("small" / "obvious" / "trivial" are NEVER valid skips.)
 - **completeness lint** — no placeholder/empty required section in a SPEC.
 - **cross-link lint** — `counterpart_spec` / `related_specs` resolve.
 
-Wire these as a `pull_request` CI job. Until then, `spec-steward`'s `BLOCK` + mandatory human PR
-review are the enforcement.
+Wire these as a `pull_request` CI job (it pairs naturally with the `quality-gates` skill). Until
+then, `spec-steward`'s `BLOCK` + mandatory human PR review are the enforcement.
 
 ---
 
@@ -132,23 +140,23 @@ review are the enforcement.
 id: SPEC-NNN
 title: "SPEC-NNN: <Human Title>"
 status: Draft            # Draft | Approved | Implemented | Superseded by SPEC-XXX
-layer: contract          # contract (api/backend) | ui (frontend)
+layer: contract          # always contract in this repo (entities, endpoints, DTOs, RBAC, migrations)
 owner: <name>
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
-feature_paths:           # source of truth this spec governs (this repo)
+feature_paths:           # source of truth this spec governs
   - src/modules/<Module>
 related_adrs: []         # e.g. [ADR-00X]
 related_specs: []        # same-repo siblings, e.g. [SPEC-002]
-counterpart_spec: ""     # paired spec in the OTHER repo, e.g. "<other-repo>#SPEC-002"; "standalone" if none
-coordination_doc: ""     # for cross-repo changes, e.g. "docs/<feature>-coordination-plan.md"
+counterpart_spec: ""     # the sibling frontend repo's spec for a cross-repo feature, e.g. "<other-repo>#SPEC-NNN"; "standalone" if this repo only
+coordination_doc: ""     # for a cross-repo feature, e.g. "docs/<feature>-coordination.md"
 ---
 
 # SPEC-NNN: <Human Title>
 
 ## 1. Summary (intended behavior)
 
-One paragraph: what the API/domain should do after this change.
+One paragraph: what the system should do after this change, from the user's / caller's perspective.
 
 ## 2. Context & problem
 
@@ -172,33 +180,30 @@ Numbered; each gets a status. Wrong ones are struck and corrected in place.
 
 ## 5. Affected areas
 
-Entities / relationships / endpoints / DTOs / RBAC scopes / migrations / modules. Keep aligned with the real diff.
+Keep aligned with the real diff.
 
-- `src/modules/<Module>/...`
-- Endpoints: ...
-- Entities + migration: ...
-- RBAC scopes: ...
+- Modules / endpoints / entities + migration / RBAC scopes ...
+- Published API contract: DTOs / response shapes changed — flag for the sibling frontend repo (see `cross-repo-workspace`) ...
 
 ## 6. Acceptance criteria (falsifiable; each maps to a test)
 
 | # | Criterion (observable behavior) | Proving test (file:line) |
 |---|---|---|
 | AC1 | <e.g. "Returns 403 when caller's scope excludes the org"> | <jest spec / e2e path> |
-| AC2 | ... | ... |
+| AC2 | <e.g. "Returns 422 when the payload violates a business rule"> | <jest spec / e2e path> |
 
 ## 7. Implementation plan
 
 3–8 steps (mirrors plan-mode). Each: `files:` / `tests:` / `risk:` / `slice:`.
-If an entity changes, a migration MUST ship in the same change.
+Contract-first: define the DTOs/contract, then implement behind it. If an entity changes, a migration MUST ship in the same change.
 
 ## 8. Testing plan
 
-Which layer proves which AC — Jest unit (`*.spec.ts`), e2e (`test/*.e2e-spec.ts`).
-Name the test files.
+Which layer proves which AC — unit/integration (Jest, real Postgres where data/RBAC/migration-bound), e2e through the controller. Name the test files.
 
 ## 9. Risks & failure modes
 
-Null/empty/large/race/partial/transaction-rollback/constraint-violation/boundary as relevant; mitigation per risk.
+Null/empty/large/race/partial/network/transaction-rollback/constraint-violation/malformed/boundary as relevant; mitigation per risk.
 
 ## 10. Open questions
 
@@ -221,10 +226,10 @@ Durable *what + how* for this project's features and behavioral changes. A SPEC 
 with what shipped **after**. The `spec-steward` agent owns this folder; the `spec-workflow`
 skill carries the full procedure.
 
-**Layer:** an API/backend repo holds **`contract`** specs (entities, endpoints, DTOs, RBAC,
-migrations); a UI repo holds **`ui`** specs (screens, forms, validation, UX). A cross-cutting
-feature has one spec per layer, cross-linked via the `counterpart_spec` frontmatter field.
-Single-repo projects use `counterpart_spec: "standalone"`. See `cross-repo-workspace`.
+**Layer:** this repo holds **`contract`** specs (entities, endpoints, DTOs, RBAC, migrations) —
+the `layer` frontmatter field is always `contract`. A feature spanning the sibling frontend repo
+cross-links via `counterpart_spec` (`"<other-repo>#SPEC-NNN"` — see `cross-repo-workspace`); a
+change confined to this repo uses `counterpart_spec: "standalone"`.
 
 **SPEC vs ADR vs plan:** a SPEC is *what we build + how* (this folder). An **ADR**
 (`docs/decisions/`) is *why a load-bearing decision was made*; SPECs cite ADRs, they do not
@@ -232,9 +237,9 @@ restate rationale. `plan-mode` is ephemeral execution sequencing, persisted *int
 
 ## Index
 
-| # | Title | Status | Updated | Feature paths |
-|---|---|---|---|---|
-| _none yet_ | | | | |
+| # | Title | Layer | Status | Updated | Feature paths |
+|---|---|---|---|---|---|
+| _none yet_ | | | | | |
 
 ## Status lifecycle
 
@@ -247,13 +252,13 @@ restate rationale. `plan-mode` is ephemeral execution sequencing, persisted *int
 
 ## Creating a SPEC
 
-1. **Search first** (this index + a grep of `docs/specs/`). One SPEC per feature/capability — never two.
+1. **Search first** (this index + a grep of `docs/specs/`). One SPEC per feature — never two.
 2. **Resolve ambiguity** — ask the user any material clarifying questions *before* writing (see `spec-workflow`).
 3. `cp docs/specs/_template.md docs/specs/SPEC-NNN-<short-kebab-title>.md` where `NNN` is the next free number.
 4. Fill it in. Acceptance criteria must be falsifiable and each map to a test. No `TBD`/placeholder in a load-bearing section before it leaves `Draft`. If an entity changes, a migration ships in the same change.
 5. If the change makes a load-bearing decision, also write/cite an ADR (`documentation-and-adrs`).
 6. Add a row to the index above.
-7. For a cross-cutting change, create/update the paired spec in the other repo, set `counterpart_spec` on both, and write a coordination doc.
+7. For a feature spanning the sibling frontend repo, set `counterpart_spec` (`"<other-repo>#SPEC-NNN"`) and write a coordination doc (see `cross-repo-workspace`).
 
 ## Updating a SPEC (the default for any existing feature)
 

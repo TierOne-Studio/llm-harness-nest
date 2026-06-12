@@ -1,6 +1,10 @@
 ---
 name: documentation-and-adrs
-description: Use when proposing a new load-bearing engineering decision (one that constrains future code or is referenced repeatedly across CLAUDE.md/skills/conventions), when superseding an existing decision, OR when a skill/CLAUDE.md section is about to restate the rationale behind an existing decision (cite the ADR instead). NOT for routine implementation, style/formatting choices, reversible local choices, or notes that belong in commit messages.
+description: Use when proposing a new load-bearing engineering decision (one that constrains future code or is referenced repeatedly across CLAUDE.md/skills/conventions) — persistence pattern, error-mapping convention, layering, DTOs, auth library, or the public-API contract shape — when superseding an existing decision, OR when a skill/CLAUDE.md section is about to restate the rationale behind an existing decision (cite the ADR instead). NOT for routine implementation, style/formatting choices, reversible local choices, or notes that belong in commit messages.
+harness:
+  tier: shared
+  family: process
+  gist: "ADR format + the layered-router documentation principle"
 ---
 
 # Documentation and ADRs
@@ -9,7 +13,7 @@ Architecture Decision Records (ADRs) are the canonical *why* for the repo. Skill
 
 ## When this skill fires
 
-- A user asks to make a structural choice that will constrain future code (persistence pattern, error-mapping convention, auth library, public-API contract shape).
+- A user asks to make a structural choice that will constrain future code: persistence pattern, error-mapping convention, auth library, or the public-API contract shape / shared types.
 - A skill or CLAUDE.md edit is about to add/expand a paragraph explaining why a convention exists. Stop — that paragraph should live in an ADR; the skill should cite it.
 - An existing decision is being reversed or superseded.
 - The user asks "why do we do X" and the answer isn't in `docs/decisions/`.
@@ -47,14 +51,14 @@ ADRs are **append-only**. Don't edit accepted ADRs except to update Status (Acce
 - Subagents by name (e.g., `architect-reviewer`).
 - Other CLAUDE.md sections by P-number (e.g., "see P3.4").
 - Literal command tokens that ARE the rule (e.g., `git push`, `INSERT`, `Co-Authored-By: Claude` — strings the rule literally matches at the tool boundary).
-- Domain category names (auth, RBAC, payments, PII — concepts, not artifacts).
-- Output structural labels (`Skills consulted:`, `Confidence:` — response markers the contract enforces).
+- Domain category names (auth, RBAC, payments, PII, XSS — concepts, not artifacts).
+- Output structural labels (`Verified:`, `Path:`, `Design review:`, `Confidence:` — response markers the contract enforces).
 
 **CLAUDE.md MUST NOT reference:**
 
-- ADR numbers (`ADR-001`, `ADR-002`, ... — illustrative; substitute your repo's numbers) — those live in `repo-conventions` § "ADR-backed conventions" + `docs/decisions/README.md`.
+- ADR numbers (`ADR-00X`, `ADR-00Y`, ... — illustrative; substitute your repo's numbers) — those live in `repo-conventions` § "ADR-backed conventions" + `docs/decisions/README.md`.
 - File paths (`src/...`, `docs/...`, `.claude/skills/...`) — those live in skill/subagent files.
-- Code symbols, decorators, class names, function names (e.g. `OrderService`, `CreateOrderDto`, `@InjectRepository`, etc.) — those live in skills with patterns + examples.
+- Code symbols, decorators, class names, function names (`OrderService`, `CreateOrderDto`, `@InjectRepository`, etc.) — those live in skills with patterns + examples.
 - Subagent internal step numbers (`code-reviewer Step 5`) — those are subagent implementation detail.
 
 **Where every new artifact gets cited (single-source-of-truth flow):**
@@ -67,7 +71,8 @@ For a new ADR:
 
    | ADR type | Citation site |
    |---|---|
-   | Convention (persistence, error-handling, logging, DTOs, layering) | `repo-conventions` § "ADR-backed conventions" table |
+   | Stack convention (persistence, error-handling, logging, DTOs, layering, testing) | `repo-conventions` § "ADR-backed conventions" table |
+   | API-contract convention (public-API shape, shared types) | `repo-conventions` § "ADR-backed conventions" table |
    | Meta-rule (conflict resolution, asks-first, attribution) | The relevant skill (`decision-rules` § 6, `nestjs-best-practices` prelude, `git-workflow` Hard rules) |
    | Subagent behavior (review-time enforcement) | The relevant subagent's Required Reading + audit step |
 
@@ -77,7 +82,7 @@ For a new skill: add Skill Pointers row + (if part of a recipe) Workflow chains 
 
 For a new subagent: add to P4 verification matrix in CLAUDE.md if it's a review subagent. Subagent itself owns all process detail.
 
-**Enforcement:** acceptance test T74 fails if CLAUDE.md gains an `ADR-NNN`, `docs/decisions/`, or `src/<dir>/` reference. `meta-skill-hygiene` audit check 7 catches drift. Both architect-reviewer and code-reviewer flag CLAUDE.md edits that introduce artifact citations as MED.
+**Enforcement:** acceptance test fails if CLAUDE.md gains an `ADR-NNN`, `docs/decisions/`, or `src/<dir>/` reference. `meta-skill-hygiene` audit check 7 catches drift. Both architect-reviewer and code-reviewer flag CLAUDE.md edits that introduce artifact citations as MED.
 
 **The "load-bearing exception" was retired.** Earlier versions of CLAUDE.md kept code-symbol primers in P2 (RBAC, org-scoping) on the theory that they were always-on safety nets. We retired this in favor of broadening `repo-conventions` description so the skill auto-loads on architecture discussions too. Don't reintroduce inline symbols in CLAUDE.md without superseding this section.
 
@@ -110,7 +115,7 @@ Skill content stays focused on *how to do it correctly today*. The ADR file hold
 
 - **Inline rationale in skills.** A skill paragraph longer than ~3 sentences explaining *why* a convention exists is a smell — that content belongs in an ADR.
 - **Editing accepted ADRs.** Append-only. Status-line updates are the only allowed edit.
-- **ADRs for ephemeral decisions.** "Use 4-space indentation" is `.editorconfig`, not an ADR. "We use a session model not JWTs" is an ADR.
+- **ADRs for ephemeral decisions.** "Use 4-space indentation" is `.editorconfig`, not an ADR. "We use a session model not JWTs" is an ADR-worthy decision.
 - **Single-alternative ADRs.** "There was no other option" is rarely true. If you can't name an alternative, you haven't thought hard enough.
 - **Decision-without-context ADRs.** "We use TypeORM" is not an ADR — it's a sentence. The Context section is what makes it readable in 12 months.
 

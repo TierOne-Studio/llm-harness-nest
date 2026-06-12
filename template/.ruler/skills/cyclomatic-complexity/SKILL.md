@@ -1,6 +1,10 @@
 ---
 name: cyclomatic-complexity
-description: Use when writing or reviewing functions with multiple branches, nested conditionals, or growing if-else chains — to reduce cyclomatic complexity via early returns, guard clauses, and extract-method. NOT for inherently linear code, simple two-branch conditions, or framework-imposed structure (NestJS decorators, route handlers with one path).
+description: Use when writing or reviewing functions with multiple branches, nested conditionals, or growing if-else chains — to reduce cyclomatic complexity via early returns, guard clauses, and extract-method. NOT for inherently linear code, simple two-branch conditions, or framework-imposed structure (route handlers with one path, NestJS decorators).
+harness:
+  tier: shared
+  family: language
+  gist: "Flattening branch-heavy, nested functions"
 ---
 
 # Cyclomatic Complexity — Early Returns and Flat Functions
@@ -13,7 +17,7 @@ LLMs default to nested if-else pyramids and `else` branches that should have bee
 
 - A function has 3+ levels of nesting.
 - A function has multiple `if` chains that each check related preconditions.
-- A function has nested ternaries (`a ? b : c ? d : e`).
+- A function has nested ternaries (`a ? b : c ? d : e`) — common LLM mistake.
 - A function exceeds ~15 lines of branchy logic.
 - A function has a long `else if ... else if ... else` chain over the same value.
 - A code review shows a method that's "hard to follow."
@@ -22,7 +26,7 @@ LLMs default to nested if-else pyramids and `else` branches that should have bee
 
 - The function is genuinely linear (no branches, just sequential awaits/returns).
 - One simple `if/else` returning two cases.
-- Framework-imposed structure (e.g., a NestJS controller method with one path).
+- Framework-imposed structure (a NestJS controller method with one path).
 - Configuration-style data (a switch over an enum where each branch is a single line — splitting it doesn't help).
 
 ## Rough metric (not a hard rule)
@@ -81,7 +85,7 @@ async findOne(id: string, scope: OrgScope): Promise<Project> {
 }
 ```
 
-Cyclomatic complexity dropped (still 5, but readability dramatically improved). Each guard says "this *must* be true to proceed."
+Cyclomatic complexity is unchanged (still 5), but the happy path is unindented and each guard says "this *must* be true to proceed."
 
 ### Rule of thumb
 
@@ -117,7 +121,7 @@ The `else` after a `return` is dead syntax. Remove it.
 ## Tactic 3: Replace nested ternaries with named functions or if/else
 
 ```ts
-// ❌ Nested ternaries — unparseable on grep, debugger, diff review
+// ❌ Nested ternaries — unparseable; broken on grep, debugger, diff review
 const role = isAdmin ? 'admin' : isEditor ? 'editor' : isViewer ? 'viewer' : 'guest'
 
 // ✅ Named function — intent is in the name; flow is in the body
@@ -196,7 +200,7 @@ async findActiveProject(id: string): Promise<Project> { return this.repo.findAct
 async findProjectIncludingArchived(id: string): Promise<Project> { return this.repo.findByIdIncludingArchived(id) }
 ```
 
-Exception: the boolean genuinely toggles a small detail (e.g., a logging flag) — leave it.
+Exception: the boolean genuinely toggles a small detail (e.g., a debug or logging flag) — leave it.
 
 ## Tactic 6: Replace conditional with polymorphism (use rarely)
 
@@ -205,25 +209,25 @@ When a function branches on a discriminant (`source.kind`), and each branch is n
 ```ts
 // ❌ Long switch on .kind, each arm doing different work
 switch (source.kind) {
-  case 'database':           return await this.searchDatabase(source.config, query)
-  case 'airweave_collection': return await this.searchAirweave(source.config, query)
-  case 'external':           return await this.searchExternal(source.config, query)
+  case 'database':            return await searchDatabase(source.config, query)
+  case 'airweave_collection': return await searchAirweave(source.config, query)
+  case 'external':            return await searchExternal(source.config, query)
 }
 
 // ✅ Registry dispatches; each provider implements the interface
-return await this.registry.search(source, query)  // see DataSourceRegistry
+return await sourceRegistry.search(source, query)
 ```
 
-This codebase already has `DataSourceRegistry` — prefer it. Don't introduce a new strategy registry just to break up a 3-arm switch unless the arms are growing.
+If a source registry already exists in the codebase, prefer it. Don't introduce a new strategy registry just to break up a 3-arm switch unless the arms are growing.
 
 ## Common LLM mistakes (catch these in `code-reviewer`)
 
 1. **Nested validation pyramid** — three+ levels of `if` checking preconditions before the work. → Use guard clauses with early throw.
 2. **`else` after `return`/`throw`** — vestigial branch. → Remove the `else`; flatten.
 3. **Nested ternaries** — already forbidden by `code-simplifier`. → Replace with `if` cascade or named function.
-4. **God method orchestrating five unnamed sections** — each section is a step with a name; extract.
+4. **God method orchestrating five unnamed sections** — each section is a named step; extract.
 5. **Boolean flag changing the function's whole behavior** — split into two functions.
-6. **Switch over `.kind` repeated in multiple methods** — use a registry/strategy (this repo's `DataSourceRegistry` is the model).
+6. **Switch over `.kind` repeated in multiple methods** — use a registry/strategy.
 7. **Single early-return for the unhappy path, then deeply nested happy path** — half-applied tactic. Apply early returns to all preconditions.
 8. **Refactoring for the metric without improving readability** — splitting a clear 6-line function into two 3-line functions named `step1` and `step2`. Don't do this.
 

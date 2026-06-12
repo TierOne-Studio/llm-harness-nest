@@ -1,6 +1,10 @@
 ---
 name: pushback-templates
 description: Use when about to push back on the user — when a simpler in-scope alternative is visible, when scope appears to be creeping, when a hidden risk is detected, or when you genuinely disagree with the framing of the request. Provides full templates with phrasing variants and example dialogues. NOT for normal conversation, agreement situations, or factual questions.
+harness:
+  tier: shared
+  family: process
+  gist: "How to disagree: observation, tradeoff, question — one round"
 ---
 
 # Pushback Templates
@@ -71,7 +75,9 @@ You: "Before I implement: a singleton flag service is one path, but the flag val
 **Example dialogue:**
 
 User: *"Fix the bug in `ProjectsService.findAll` where it's returning archived projects."*
-You: "This change as described would also touch the controller's response DTO — `findAll` currently returns the raw repo result, and the consumer is expecting unfiltered. Two options: (1) fix the service-level filter only, ship, and check whether any caller relies on the unfiltered behavior as a follow-up; (2) update the controller + DTO + frontend usage in one change. Which?"
+You: "This change as described would also touch the controller's response DTO — `findAll` currently returns the raw repo result, and the consumer is expecting unfiltered. Two options: (1) fix the service-level filter only, ship, and check whether any caller relies on the unfiltered behavior as a follow-up; (2) update the controller + DTO in the same change. Which?"
+
+> If the bug touches the published API contract, name it explicitly: a change to the published API contract typically pairs with a change in the sibling frontend repo (see `cross-repo-workspace`), so the scope discussion must cover both sides.
 
 ### 3. Hidden risk
 

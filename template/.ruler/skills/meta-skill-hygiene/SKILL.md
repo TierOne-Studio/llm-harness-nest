@@ -1,6 +1,10 @@
 ---
 name: meta-skill-hygiene
 description: Use when reviewing the skill library for quality — typically monthly, after 5+ approved curator proposals, or when skills feel like they're misfiring or overlapping. NOT a routine skill. NOT for adding individual skills (that's lessons-curator). Invoke deliberately for an audit.
+harness:
+  tier: shared
+  family: process
+  gist: "Auditing this skill library itself (overlap, bloat, size ceilings)"
 ---
 
 # Meta-Skill Hygiene
@@ -28,7 +32,7 @@ Skill body has grown past ~200 lines or contains content that's actually CLAUDE.
 
 Fix: extract to the right layer.
 
-**~500-line split threshold.** When a SKILL.md exceeds ~500 lines, the skill is too dense to be loaded efficiently — split into a directory with this layout (canonical example: `nestjs-patterns/`):
+**~500-line split threshold.** When a SKILL.md exceeds ~500 lines, the skill is too dense to be loaded efficiently — split into a directory with this layout (canonical example: a pattern skill like `nestjs-patterns/`):
 
 ```
 skill-name/
@@ -38,11 +42,13 @@ skill-name/
 ├── patterns/          ← named sub-patterns the entry point routes to
 │   ├── pattern-a.md
 │   └── pattern-b.md
-└── rules/             ← when the skill is rule-catalog-shaped (e.g., nestjs-best-practices)
+└── rules/             ← when the skill is rule-catalog-shaped (e.g., `nestjs-best-practices`)
     └── rule-name.md
 ```
 
 The parent SKILL.md tells the agent which sub-file to load for which situation; the model loads only what's relevant. Don't pre-emptively split — apply this when the skill genuinely passes ~500 lines OR when distinct sub-shapes (patterns, rules, references) emerge.
+
+**Enforced ceiling.** The template's acceptance suite (`tests/run-acceptance.sh` T13) WARNs at >400 lines per SKILL.md and FAILS at >800 — a monolith past that point must be split before it ships. Index-style skills pass trivially; the budget is on the always-loaded entry point, not the on-demand topic files.
 
 ### 4. Contradictions
 
@@ -53,7 +59,7 @@ Fix: resolve at the higher-priority layer (CLAUDE.md > hook > skill).
 
 ### 5. Dead skills
 
-Skill never fires. Either the trigger description doesn't match real prompts, or the situation it covers doesn't occur in your codebase.
+Skill never fires. Either the trigger description doesn't match real prompts, or the situation it covers doesn't occur in this codebase.
 
 Fix: rewrite trigger or remove.
 
@@ -76,7 +82,7 @@ Fix: add a new skill with a precise description, or sharpen an existing one.
 
 ## Process
 
-1. **List** — enumerate every skill in `.claude/skills/`.
+1. **List** — enumerate every skill in `.claude/skills/` (or `.ruler/skills/` if ruler-managed).
 2. **Walk** — apply each of the six checks across the library.
 3. **Propose** — produce a prioritized cleanup list (HIGH / MED / LOW).
 4. **STOP** — do **not** edit any skill file. The user reviews the proposals and approves before any change.

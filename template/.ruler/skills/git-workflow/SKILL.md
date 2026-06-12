@@ -1,6 +1,10 @@
 ---
 name: git-workflow
 description: Use when committing, pushing, branching, creating PRs, merging, rebasing, or any git operation that mutates remote or local repository state. NOT for read-only operations like status, log, diff, show, blame, or branch listing.
+harness:
+  tier: shared
+  family: process
+  gist: "Branch/commit/PR mutations done safely"
 ---
 
 # Git Workflow
@@ -16,7 +20,7 @@ description: Use when committing, pushing, branching, creating PRs, merging, reb
 
 - Branch from `main` (after `git fetch origin && git checkout main && git pull --ff-only`).
 - Naming: `<type>/<short-description>` where type ∈ {`feat`, `fix`, `chore`, `refactor`, `docs`, `test`, `perf`, `ci`}.
-- Examples: `feat/add-org-scoped-rbac`, `fix/projects-cross-org-guard`, `refactor/chat-agent-source-filter`.
+- Examples: `feat/add-org-scoped-rbac`, `fix/projects-cross-org-guard`, `refactor/chat-source-filter`, `refactor/chat-agent-source-filter`.
 - One branch per logical change. Don't accumulate unrelated work on a feature branch.
 
 ## Commit discipline
@@ -61,6 +65,8 @@ Reversibility: easy — git push --force on the same branch (with approval).
 Collaborators: solo branch.
 Awaiting approval (reply 'approve' or 'yes' to proceed)
 ```
+
+A change to the published API contract typically pairs with a change in the sibling frontend repo (see `cross-repo-workspace`) — call out the contract change in the summary so the consumer side can be coordinated.
 
 For commit/branch creation, scale the summary to what's relevant — `git commit` doesn't have remote impact; `git push --force` to a shared branch does.
 

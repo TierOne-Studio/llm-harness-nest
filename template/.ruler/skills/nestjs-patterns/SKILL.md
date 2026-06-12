@@ -1,6 +1,10 @@
 ---
 name: nestjs-patterns
 description: Use when designing or reviewing NestJS providers (`useFactory:` / async init / env-driven creation / `forRoot`/`forRootAsync`/`forFeature` dynamic modules / `@Global()` / `Scope.REQUEST` / `Scope.TRANSIENT`), cross-cutting layers (Guard / Pipe / Interceptor / Middleware decisions), or parameterized guards/interceptors via the `mixin()` helper. Index of 5 tactical patterns; route to the relevant file in patterns/ for depth. NOT for plain class providers (use `useClass:`), simple feature modules without consumer config, or generic NestJS questions (use `nestjs-best-practices` instead).
+harness:
+  tier: backend
+  family: backend-nest
+  gist: "Tactical providers, Guards/Pipes/Interceptors, mixins (index + patterns)"
 ---
 
 # NestJS Tactical Patterns

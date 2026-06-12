@@ -9,6 +9,8 @@ tags: error-handling, exception-filters, consistency
 
 Errors in HTTP endpoints get consistent, structured responses. Controllers don't manually format error JSON; they throw, and a single mechanism handles the mapping to HTTP.
 
+> In a clean-architecture module, the domain throws plain `Error` and the application layer translates at the boundary — see `nestjs-clean-architecture/topics/application-and-infrastructure.md` (Pattern 5).
+
 > ⚠️ **Skill-vs-repo conflict resolution:** This rule recommends adding a global `AllExceptionsFilter`. If your repo currently has no global exception filter (check `repo-conventions` § "Error handling"), adding one is a **structural refactor** — it changes app-wide error mapping, affects every existing route, and isn't tied to a specific PR's scope.
 >
 > **Default for the current PR:** follow `repo-conventions` (Approach A below). Throw NestJS built-in exceptions; let the framework auto-map. Don't introduce a global filter as a side-effect of unrelated work.

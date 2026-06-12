@@ -5,6 +5,10 @@ license: MIT
 metadata:
   author: Kadajett
   version: "1.1.0"
+harness:
+  tier: backend
+  family: backend-nest
+  gist: "40 rules across 10 categories (arch, DI, security, perf, testing…)"
 ---
 
 # NestJS Best Practices
@@ -158,6 +162,6 @@ Each rule file contains:
 - Correct code example with explanation
 - Additional context and references
 
-## Full Compiled Document
-
-For the complete guide with all rules expanded: `AGENTS.md`
+The `rules/` files are the canonical form. (Upstream also publishes a single-file
+compiled build; it is intentionally not shipped here — it duplicates `rules/` and
+the two copies drift.)

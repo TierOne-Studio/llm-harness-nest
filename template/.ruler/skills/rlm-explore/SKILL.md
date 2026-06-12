@@ -1,6 +1,10 @@
 ---
 name: rlm-explore
 description: Use when working in a large or unfamiliar codebase, or when the user provides large/dense context (logs, multiple docs, full repos, long error output). NOT for small focused changes where the relevant code is already obvious, factual single-file questions, or trivial bug fixes.
+harness:
+  tier: shared
+  family: process
+  gist: "Slice-based digestion of big or unfamiliar context"
 ---
 
 # RLM Explore — Recursive Language Model Mechanics

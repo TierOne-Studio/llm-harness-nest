@@ -1,0 +1,5 @@
+# Copy to .husky/pre-commit (husky v9+ — no shebang/sourcing boilerplate needed).
+# Fast local gate: lint + format ONLY staged files. Heavy checks (typecheck,
+# tests, e2e) live in CI, not here — keep this under a couple of seconds.
+# Requires: npm i -D husky lint-staged  +  a "lint-staged" block in package.json.
+npx lint-staged

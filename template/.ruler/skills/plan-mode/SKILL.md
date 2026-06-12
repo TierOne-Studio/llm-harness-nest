@@ -1,6 +1,10 @@
 ---
 name: plan-mode
-description: Use BEFORE executing non-trivial tasks — 3+ steps, multi-file changes, architectural or design decisions, debugging with uncertain root cause, verification work, anything with meaningful behavior or delivery risk. NOT for trivial single-file edits, factual answers, or read-only investigations where the answer is obvious.
+description: Use BEFORE executing non-trivial tasks — 3+ steps, multi-file changes, architectural or design decisions, debugging with uncertain root cause, verification work, anything with meaningful behavior or delivery risk. Covers the NestJS backend layers (entity/migration, repository, service, controller) and the published API contract. Produces a per-step plan with verify clauses, dependency-graph analysis, slice strategy, and assumptions block. NOT for trivial single-file edits, factual answers, or read-only investigations where the answer is obvious.
+harness:
+  tier: shared
+  family: process
+  gist: "Plans for 3+ step / multi-file / architectural work"
 ---
 
 # Plan Mode
@@ -51,11 +55,13 @@ Success criteria MUST be explicit and falsifiable.
 
 ### When the plan introduces a structural decision
 
-If any plan step introduces a load-bearing engineering decision (new persistence layer, new auth library, new public-API contract, app-wide bootstrap change — anything that will be cited from `CLAUDE.md` / `repo-conventions` / a skill), the plan MUST include an explicit step to write the corresponding ADR in `docs/decisions/ADR-NNN-<title>.md`. The ADR step lives alongside the implementation steps with its own `verify:` clause (the file exists, has all required sections, and the index in `docs/decisions/README.md` is updated). See `documentation-and-adrs` for the ADR format.
+If any plan step introduces a load-bearing engineering decision (new persistence layer, new state-management library, new auth library or auth flow, new public-API contract, app-wide bootstrap change — anything that will be cited from `CLAUDE.md` / `repo-conventions` / a skill), the plan MUST include an explicit step to write the corresponding ADR in `docs/decisions/ADR-NNN-<title>.md`. The ADR step lives alongside the implementation steps with its own `verify:` clause (the file exists, has all required sections, and the index in `docs/decisions/README.md` is updated). See `documentation-and-adrs` for the ADR format.
 
 ### Identify the dependency graph BEFORE slicing
 
-Before writing the per-step plan, sketch what depends on what. The dependency graph dictates implementation order — foundations first, consumers last:
+Before writing the per-step plan, sketch what depends on what. The dependency graph dictates implementation order — foundations first, consumers last. In this repo, the contract (DTO shapes / OpenAPI surface / entity + migration) sits at the root of the graph: define the contract and the entity first, then the repository/service, then the controller; consumers — the sibling frontend repo (see `cross-repo-workspace`) or other services — develop against the published contract.
+
+The typical layering is:
 
 ```
 Database / entity / migration
@@ -71,19 +77,21 @@ Database / entity / migration
     │               └── Internal callers in other modules
 ```
 
+When a change also affects the sibling frontend repo (see `cross-repo-workspace`), the published API contract is the common foundation: plan the contract change first, then the implementation that produces it; the frontend repo develops against the published contract.
+
 Plan steps follow the graph bottom-up. Two consequences: (a) early steps unblock multiple later ones; (b) a step that touches both top and bottom of the graph is too wide — split it.
 
 ### Slicing strategies (pick one explicitly)
 
-- **Vertical (default — tracer bullet).** Each slice cuts through every layer end-to-end (entity + repo + service + controller + test) for ONE narrow path. Pairs with the ~100-LOC cap. Best when the layer-stack is well-understood and the risk is in the integration.
+- **Vertical (default — tracer bullet).** Each slice cuts through every layer end-to-end for ONE narrow path (entity + repo + service + controller + test). Pairs with the ~100-LOC cap. Best when the layer-stack is well-understood and the risk is in the integration.
 - **Risk-first.** When there's irreducible technical risk (new external integration, novel concurrency pattern, unproven library), make the first slice prove just the risky piece. If it fails, you discover it before sinking effort into Slices 2..N. Subsequent slices build on the proven path.
-- **Contract-first.** When a public API or module boundary is being introduced, **Slice 0 = define the contract** (types / interface / OpenAPI surface). Then Slice 1+ implements behind the contract; consumers can develop in parallel against the same shape. Best fit for new NestJS controllers exposing a route the frontend or another service will consume.
+- **Contract-first.** When a public API or module boundary is being introduced, **Slice 0 = define the contract** (DTO shapes / interface / OpenAPI surface). Then Slice 1+ implements behind the contract; consumers can develop in parallel against the same shape. Best fit for new NestJS controllers exposing a route the sibling frontend repo (see `cross-repo-workspace`) or another service will consume.
 
 State the choice in the plan output (e.g., `Slicing: contract-first — Slice 0 defines the DTOs and controller signatures; Slice 1 implements the service`). The reviewer (`architect-reviewer`) checks whether the choice matches the actual risk profile.
 
 ### Step sizing — tracer-bullet vertical slices (~100 LOC cap)
 
-Each step is a **tracer-bullet vertical slice**: a thin path that cuts through every layer (schema → service → controller → test) end-to-end, NOT a horizontal slice of one layer. A completed slice is demoable or verifiable on its own. Implementable, testable, and committable on its own. Target ≤ ~100 LOC of executable code per step (tests excluded from the count). If a step's implementation crosses ~100 LOC mid-execution, **STOP, commit what's working, and split the rest into a new step.** Don't push through.
+Each step is a **tracer-bullet vertical slice**: a thin path that cuts through every layer end-to-end (entity/schema → service → controller → test), NOT a horizontal slice of one layer. A completed slice is demoable or verifiable on its own. Implementable, testable, and committable on its own. Target ≤ ~100 LOC of executable code per step (tests excluded from the count). If a step's implementation crosses ~100 LOC mid-execution, **STOP, commit what's working, and split the rest into a new step.** Don't push through.
 
 The cap is a discipline mechanism, not a hard rule — a 130-LOC step that's genuinely cohesive is fine; a 250-LOC step that's "just three small things" is the failure mode. The split-and-commit reflex catches big-bang implementations that drift from the plan and produce un-reviewable diffs.
 

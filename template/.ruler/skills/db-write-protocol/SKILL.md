@@ -1,6 +1,10 @@
 ---
 name: db-write-protocol
 description: Use when ANY database write is required — INSERT, UPDATE, DELETE, schema change, migration, destructive maintenance. NOT for SELECT, read-only investigations, JQL queries, or schema introspection.
+harness:
+  tier: backend
+  family: data
+  gist: "Approval + impact protocol for ANY database write"
 ---
 
 # Database Write Protocol

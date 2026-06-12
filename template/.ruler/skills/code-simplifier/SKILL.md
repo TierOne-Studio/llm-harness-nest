@@ -1,9 +1,13 @@
 ---
 name: code-simplifier
-description: 'Simplify and refine recently modified code for clarity, consistency, and maintainability while preserving exact behavior. Use after edits, during cleanup, or when reviewing touched files. Prefer explicit readable code, follow project standards, avoid nested ternaries, and keep scope limited to changed code unless asked otherwise.'
+description: 'Simplify and refine recently modified code for clarity, consistency, and maintainability while preserving exact behavior. Use after edits, during cleanup, or when reviewing touched files across the codebase — NestJS services, repositories, controllers, and plain TypeScript modules. Prefer explicit readable code, follow project standards, avoid nested ternaries, and keep scope limited to changed code unless asked otherwise.'
 argument-hint: 'Describe the changed files, diff, or scope to simplify.'
 user-invocable: true
 disable-model-invocation: false
+harness:
+  tier: shared
+  family: language
+  gist: "Surgical cleanup of recently-modified code, behavior preserved"
 ---
 
 # Code Simplifier
@@ -67,7 +71,7 @@ The failure mode of this skill. Watch for these patterns and stop yourself:
 - Keep responsibilities separated; do not merge unrelated concerns just to reduce line count.
 - Remove comments that only restate obvious code.
 - Keep error handling consistent with repository patterns and avoid adding unnecessary try/catch blocks.
-- For top-level APIs and components, keep types explicit when the project conventions require them.
+- For top-level APIs — NestJS controllers, services, and providers — keep types explicit when the project conventions require them.
 
 ## What Not to Do
 

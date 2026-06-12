@@ -4,6 +4,10 @@ description: "Node.js development principles and decision-making. Framework sele
 risk: unknown
 source: community
 date_added: "2026-02-27"
+harness:
+  tier: backend
+  family: backend-nest
+  gist: "Framework selection, async patterns, security defaults"
 ---
 
 # Node.js Best Practices
@@ -234,7 +238,7 @@ Where to validate:
 | **Zod** | TypeScript first, inference |
 | **Valibot** | Smaller bundle (tree-shakeable) |
 | **ArkType** | Performance critical |
-| **Yup** | Existing React Form usage |
+| **Yup** | Legacy validation schemas already in the codebase |
 
 ### Validation Philosophy
 
@@ -279,9 +283,9 @@ Trust nothing:
 
 | Type | Purpose | Tools |
 |------|---------|-------|
-| **Unit** | Business logic | node:test, Vitest |
+| **Unit** | Business logic | node:test, Jest |
 | **Integration** | API endpoints | Supertest |
-| **E2E** | Full flows | Playwright |
+| **E2E** | Full flows | Jest e2e (HTTP through the running app) |
 
 ### What to Test (Priorities)
 

@@ -1,6 +1,10 @@
 ---
 name: cross-repo-workspace
-description: Use ALWAYS when the Claude Code session has two or more repos as working directories (a primary cwd plus one or more repos in Additional working directories). Governs the lens-switching rule (which repo's conventions apply per file), the ADR-qualification rule (repos usually reuse the same ADR numbers with different meanings), the coordination-doc pattern for cross-repo features, and the prompt-target convention. NOT for single-repo sessions.
+description: Use ALWAYS when the session spans two or more repositories — a primary cwd plus additional working directories, a feature touching a backend repo AND a frontend repo, or any change coordinated across sibling repos in one workspace. Governs the lens-switching rule (which repo's conventions apply per file), the ADR-qualification rule (repos reuse the same ADR numbers with different meanings), the coordination-doc pattern for cross-repo features, and the prompt-target convention. NOT for single-repo sessions (work confined to this repo alone — this skill is about separate repositories).
+harness:
+  tier: shared
+  family: process
+  gist: "Lens-switching when one session spans two or more repos"
 ---
 
 # Cross-Repo Workspace
@@ -138,7 +142,7 @@ If the gates ever diverge between repos:
 
 ## Output contract addition
 
-When this skill fires, the response's `Skills consulted:` line MUST include `cross-repo-workspace`. When Rule 1 caused a lens-switch (file in a non-primary repo), the response MUST also state:
+When this skill fires AND Rule 1 caused a lens-switch (file in a non-primary repo), the response MUST state:
 
 > Lens-switch: applied **<target-repo>** conventions for files under `/<target-repo>/`. Read `<absolute-path>/.ruler/skills/repo-conventions/SKILL.md` before editing.
 

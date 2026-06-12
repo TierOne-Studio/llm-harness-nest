@@ -9,6 +9,8 @@ tags: architecture, repository, data-access
 
 Create custom repositories to encapsulate complex queries and database logic. This keeps services focused on business logic, makes testing easier with mock repositories, and allows changing database implementations without affecting business code.
 
+> The layered form of this pattern (domain port interface + infrastructure adapter + two-way mapping) is canonical in `nestjs-clean-architecture/topics/application-and-infrastructure.md` (Pattern 4). This rule shows the flat custom-repository form.
+
 **Incorrect (complex queries in services):**
 
 ```typescript

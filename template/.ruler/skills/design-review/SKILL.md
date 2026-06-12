@@ -1,11 +1,15 @@
 ---
 name: design-review
-description: Use BEFORE declaring any code change complete. Reviews the change against SOLID, DRY, KISS, SoC, YAGNI, cohesion/coupling, fail-fast, explicitness, single source of truth, and the SHOULD heuristics. Required for all executable-code deliverables. NOT for non-code outputs (docs, content, JQL, SQL reads, plain explanations).
+description: Use BEFORE declaring any code change complete. Reviews the change against SOLID, DRY, KISS, SoC, YAGNI, cohesion/coupling, fail-fast, explicitness, single source of truth, and the SHOULD heuristics. Required for all executable-code deliverables in the app. NOT for non-code outputs (docs, content, JQL, SQL reads, plain explanations).
+harness:
+  tier: shared
+  family: process
+  gist: "SOLID/DRY/KISS pass + the verification line, before declaring done"
 ---
 
 # Design Review
 
-Single focused pass at the end of an implementation. This is a workflow expectation enforced by process and verified by `.claude/tests/run-acceptance.sh`, not by a runtime hook. For executable-code changes, the response MUST include a `Design review:` block plus a `Confidence:` line, or a valid `design-review waived — …` line.
+Single focused pass at the end of an implementation. This is a workflow expectation enforced by process and verified by `.claude/tests/run-acceptance.sh`, not by a runtime hook. For executable-code changes, the response MUST include a `Design review:` block ending with the P8.1 verification line, or a valid `design-review waived — …` line.
 
 ## Output format (required)
 
@@ -24,7 +28,7 @@ Design review:
 - SSoT:         ...
 - Trade-offs:   <which principle was traded off and why, if any>
 
-Confidence: 0.XX
+Verified: <suite command(s)> run here and green | reviewers: <subagent → verdict, …> | open risks: <none | list>
 ```
 
 If a principle was deliberately traded off, state it explicitly. Conflict resolution order: **correctness → simplicity → clarity → maintainability**.
@@ -107,7 +111,7 @@ If a principle was deliberately traded off, state it explicitly. Conflict resolu
 8. No retries; no try/catch as bandage?
 9. No speculative design or unused abstractions?
 10. Backward compatibility preserved (unless told otherwise)?
-11. Confidence ≥ 0.9?
+11. Is the P8.1 verification line honestly satisfiable (suites ran green here, reviewer verdicts in hand, gaps named under `open risks:`)?
 
 If any answer is "no", revise before declaring done.
 
@@ -137,12 +141,12 @@ return await fetch(url)  // throws on failure with timing/url/status context
 
 ### Manager / Helper / Util naming
 ```ts
-// Bad — what does this *actually* do?
+// Bad: what does this *actually* do?
 class ProjectManager { ... }
 class AuthHelper { ... }
 function stringUtil(s: string) { ... }
 
-// Good — name describes the responsibility
+// Good: name describes the responsibility
 class OrgScopedProjectFinder { ... }
 class JwtIssuer { ... }
 function slugify(name: string) { ... }
@@ -150,12 +154,12 @@ function slugify(name: string) { ... }
 
 ### Premature abstraction
 ```ts
-// Bad — generic interface for ONE concrete caller
+// Bad: generic interface for ONE concrete caller
 abstract class BaseService<T extends BaseEntity, R extends Repository<T>> { ... }
 class ProjectService extends BaseService<Project, ProjectRepo> { ... }
 // (no second consumer exists)
 
-// Good — concrete now, generalize when caller #2 appears
+// Good: concrete now, generalize when caller #2 appears
 class ProjectService { ... }
 ```
 
@@ -194,53 +198,38 @@ try { ... } catch (e) { logger.error('something failed', e); throw e }
 - Building complex inheritance chains when composition would do.
 - "Just add a flag" to keep both old and new behavior alive forever.
 
-## Confidence calibration rubric
+## Verification line + confidence calibration
 
-**The 5-item rubric and the 0.9 gate live in `CLAUDE.md` §P8.1** (always-loaded so the rule applies even if this skill doesn't fire). This section provides the calibration depth: anchors per band, the output format, and the "never round up" principle.
-
-### Calibration anchors (concrete examples of each band)
-
-**0.95–1.00** — All rubric items earned. Tests fully cover the changed code path including error paths. No HIGH/MED from any reviewer. No open assumptions. Refactor would be cosmetic.
-*Example:* "Added `scope=owner` check to `projects.findAll`, with failing test demonstrating cross-user leakage before the fix. Full suite green. code-reviewer + qa-validator + security-reviewer all APPROVE."
-
-**0.85–0.94** — All rubric items earned, but one is partial: tests pass but a domain reviewer wasn't run, OR an assumption is unvalidated, OR a MED finding from a reviewer was acknowledged but not yet fixed.
-*Example:* "Implementation done, tests pass, design clean, but I didn't run security-reviewer on this auth change because the change was tiny — should have."
-
-**0.70–0.84** — Multiple rubric items partial. Implementation works but verification is thin. Reasonable for a draft; not for a declared-done.
-*Example:* "Tests cover happy path only. Edge cases enumerated but not yet tested. code-reviewer not run."
-
-**< 0.70** — Implementation may not even work as claimed, OR no verification at all. Not declarable done. Stop and revise.
-
-NEVER round up. If two rubric items are at 0.10/0.20, your confidence is 0.80, not 0.90. The user uses this number to decide whether to ship.
-
-Output format for the rubric (include after the principle grid):
+**The main response carries NO self-assigned numeric confidence.** It ends with the `CLAUDE.md` §P8.1 verification line — evidence, not self-grading:
 
 ```
-Confidence rubric:
-- Tests pass:                  0.20 / 0.20  [✓ ran <suite>, all green]
-- Principles checked:          0.20 / 0.20  [✓ 9/9 MUST, grid above]
-- No HIGH from reviewers:      0.20 / 0.20  [✓ code-reviewer APPROVE, qa-validator PASS]
-- Domain gates passed:         0.20 / 0.20  [N/A — no auth/payments/RBAC touched]
-- No open assumptions:         0.20 / 0.20  [✓ all stated assumptions validated]
-
-Confidence: 1.00
+Verified: <suite command(s)> run here and green | reviewers: <subagent → verdict, …> | open risks: <none | list>
 ```
 
-The numbers are not theatre — they are the rubric outcome. Lying to yourself on the rubric is a worse sin than reporting low confidence honestly.
+Every claim in that line must be backed in the response (the command that ran, the verdicts received). An unrun suite or an unrun triggered reviewer is an **open risk** and must be named, not omitted. Final status follows P4 aggregation: the minimum over the subagents that ran; any BLOCK → not done.
+
+### Calibration anchors (for REVIEW SUBAGENTS' confidence scores)
+
+The numeric 0.0–1.0 confidence survives where it is independent signal: each review subagent attaches one to its own verdict. Anchors:
+
+**0.95–1.00** — Verified directly: read every changed file, traced the data flow, ran or reproduced the relevant checks. Would stake the verdict on it.
+
+**0.85–0.94** — Verdict solid but one input is secondhand: a suite result quoted rather than reproduced, an assumption about repo convention not re-checked.
+
+**0.70–0.84** — Verdict directional; coverage of the diff was partial (skimmed peripheral files, didn't trace one edge path). Say which part.
+
+**< 0.70** — Not confident enough to be a gate. Say what would raise it instead of emitting a soft verdict.
+
+NEVER round up, and never average two concerns into one number — report the lower with its reason. An inflated reviewer confidence corrupts the P4 minimum-aggregation it feeds.
 
 ## Output contract — quality criteria per item
 
-The CLAUDE.md output contract lists 10 items. Each has a *quality bar* that distinguishes a solid deliverable from a sloppy one:
+The CLAUDE.md output contract (P8) lists 5 items. Each has a *quality bar* that distinguishes a solid deliverable from a sloppy one:
 
 1. **Requirements checklist** — Falsifiable bullets. "User can do X with input Y and see result Z." Not "feature works".
-2. **Working Set / REPL transcript** — Only if context is large/dense. Cite evidence (file:line). No bullet without a source.
-3. **Plan** — 3–8 steps. Each step has `verify:` clause. No step without verifier. Risks named per step.
-4. **Changeset summary** — Files + line counts + one-line per file. Skim test: a reviewer should know what changed in 30 seconds.
-5. **Tests (FIRST)** — Failing tests written before implementation. Test code appears BEFORE implementation in the response, not after.
-6. **Implementation (SECOND)** — Minimal. Each function traces to a test. No speculative branches.
-7. **How to run / verify** — Exact commands, copy-pasteable. Not "run the tests" — `npm test -- projects.spec.ts`.
-8. **Design review block** — Principle grid + trade-offs (what was traded off and why) + the calibration rubric.
-9. **Confidence** — Rubric outcome. Cite which rubric items earned and which didn't.
-10. **Optional improvements** — Proposals only, no implementation. Each with estimated cost + estimated value, so the user can prioritize.
+2. **Plan** — Steps with `verify:` / `files:` / `tests:` / `risk:` clauses; no step without a verifier. (Fast path: may compress to 3 bullets.) Cite evidence (file:line) when context is large — no claim without a source.
+3. **Tests (FIRST)** — Failing tests written before implementation. Test code appears BEFORE implementation in the response, not after.
+4. **Implementation (SECOND)** — Minimal. Each function traces to a test. No speculative branches. File-by-file with path headers.
+5. **Run/verify + Design review** — Exact copy-pasteable commands (not "run the tests" — `npm test -- projects.spec.ts`); the `Design review:` principle grid + trade-offs; optional improvements as proposals with cost/value; ending with the P8.1 verification line.
 
 A response that ticks every box at this quality bar is a *senior-staff-engineer-quality* deliverable. Anything less is a draft.

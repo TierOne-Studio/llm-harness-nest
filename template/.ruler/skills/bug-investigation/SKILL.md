@@ -1,6 +1,10 @@
 ---
 name: bug-investigation
 description: Use when given a bug report, failing test, CI failure, production incident, or "it's broken" task. NOT for new features, refactors not driven by a defect, design work, or routine code reviews.
+harness:
+  tier: shared
+  family: process
+  gist: "Ranked falsifiable hypotheses before any fix"
 ---
 
 # Bug Investigation
@@ -35,13 +39,12 @@ When anything unexpected happens — failing test, broken build, runtime error, 
 1. **Failing test** at the seam that reaches the bug — unit, integration, or e2e. Default option, becomes the regression test.
 2. **`curl` / HTTP script** against a running dev server.
 3. **CLI invocation** with a fixture input, diffing stdout against a known-good snapshot.
-4. **Headless browser** (Playwright / Puppeteer) — drives the UI; asserts on DOM / console / network.
-5. **Replay a captured trace.** Save a real request payload / event log to disk; replay through the code path in isolation.
-6. **Throwaway harness.** Minimal subset of the system (one service, mocked deps) that exercises the bug code path with a single function call.
-7. **Property / fuzz loop.** If the bug is "sometimes wrong output", run N random inputs and look for the failure mode.
-8. **Bisection harness.** If the bug appeared between two known states (commit, dataset, version), automate "boot at state X, check, repeat" so `git bisect run` works.
-9. **Differential loop.** Same input through old-version vs new-version (or two configs); diff outputs.
-10. **HITL bash script** (last resort). If a human must click, structure the loop so captured output feeds back to you.
+4. **Replay a captured trace.** Save a real request payload / event log to disk; replay through the code path in isolation.
+5. **Throwaway harness.** Minimal subset of the system (one service, mocked deps) that exercises the bug code path with a single function call.
+6. **Property / fuzz loop.** If the bug is "sometimes wrong output", run N random inputs and look for the failure mode.
+7. **Bisection harness.** If the bug appeared between two known states (commit, dataset, version), automate "boot at state X, check, repeat" so `git bisect run` works.
+8. **Differential loop.** Same input through old-version vs new-version (or two configs); diff outputs.
+9. **HITL bash script** (last resort). If a human must click, structure the loop so captured output feeds back to you.
 
 ### Iterate on the loop itself — treat it as a product
 
@@ -83,12 +86,13 @@ When the symptom is unclear about which layer is failing:
 
 ```
 Where does the failure surface?
-├── HTTP / controller / public API  → check request log, response body, route guard
-├── Service / domain logic          → check service-method inputs, intermediate values
-├── Repository / database           → check the executed SQL, parameters, transaction boundary
-├── Build / tooling / CI            → check config, dependencies, env vars, runner version
-├── External service                → check connectivity, rate limits, contract-compliance, recent vendor changes
-└── The test itself                 → false negative: is the test actually correct? (See `tdd-workflow` rubric item 1 — rename test diagnostic.)
+├── HTTP / controller / public API                → check request log, response body, route guard
+├── Published API contract / DTO                  → check for a contract change a consumer (the sibling frontend repo — see `cross-repo-workspace` — or another service) hasn't absorbed
+├── Service / domain logic                        → check service-method inputs, intermediate values
+├── Repository / database                         → check the executed SQL, parameters, transaction boundary
+├── Build / tooling / CI                          → check config, dependencies, env vars, runner version
+├── External service                              → check connectivity, rate limits, contract-compliance, recent vendor changes
+└── The test itself                               → false negative: is the test actually correct? (See `tdd-workflow` rubric item 1 — rename test diagnostic.)
 ```
 
 ### Bisect for regressions
