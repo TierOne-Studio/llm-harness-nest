@@ -1,16 +1,20 @@
 ---
 name: async-error-handling
-description: Use when writing or reviewing async code in Node.js — Promise composition (Promise.all/allSettled/race), error propagation, AbortSignal/timeouts, top-level handlers, where to catch vs let propagate. NOT for synchronous code, framework-internal lifecycle handlers, or simple sequential awaits with no error-flow decision.
+description: Use when writing or reviewing async code in JavaScript/TypeScript (Node.js) — Promise composition (Promise.all/allSettled/race), error propagation, AbortSignal/timeouts, top-level handlers, where to catch vs let propagate. Applies to NestJS services, repositories, controllers, and external HTTP/DB calls. NOT for synchronous code, framework-internal lifecycle handlers, or simple sequential awaits with no error-flow decision.
+harness:
+  tier: shared
+  family: language
+  gist: "Promise composition, AbortSignal, where to catch"
 ---
 
 # Async Error Handling
 
-The most LLM-error-prone area in Node.js. The default model habits — wrapping every method in try/catch, returning `null` instead of throwing, defensively retrying — actively violate this codebase's fail-fast principle. This skill encodes the correct patterns and the failure modes to catch.
+The most LLM-error-prone area in JS/TS. The default model habits — wrapping every method in try/catch, returning `null` instead of throwing, defensively retrying — actively violate this codebase's fail-fast principle. This applies throughout the codebase. This skill encodes the correct patterns and the failure modes to catch.
 
 ## When this fires
 
 - Composing parallel async work (`Promise.all`, `Promise.allSettled`, `Promise.race`).
-- Calling external services (HTTP, DB) where partial failure is possible.
+- Calling external services (HTTP, auth, DB) where partial failure is possible.
 - Implementing timeouts, cancellation, or backpressure.
 - Choosing where in a layered call chain to catch a specific error.
 - Reviewing existing async code for silent-failure or wrong-layer-catch issues.
@@ -23,7 +27,7 @@ The most LLM-error-prone area in Node.js. The default model habits — wrapping 
 
 ## Core rules (override LLM defaults)
 
-1. **Throw, don't return null.** This codebase uses NestJS exceptions (`ForbiddenException`, `BadRequestException`, etc.). Returning `null` to signal failure forces every caller to check, drops error context, and violates explicitness.
+1. **Throw, don't return null.** Returning `null` to signal failure forces every caller to check, drops error context, and violates explicitness. Throw a NestJS exception (`ForbiddenException`, `BadRequestException`, `NotFoundException`, etc.).
 
 2. **Catch at the boundary, not at every layer.** A repository throws → the service lets it propagate → the controller's exception filter maps it to HTTP. Catching mid-stack only to rethrow is noise.
 
@@ -31,7 +35,7 @@ The most LLM-error-prone area in Node.js. The default model habits — wrapping 
 
 4. **No retries.** Per CLAUDE.md P5. The caller decides retry policy; let the failure propagate with timing/URL/status context.
 
-5. **Fail fast at boundaries.** Validate inputs at the controller; surface invalid state at the entry point. Don't let bad data flow into the domain layer and crash unexpectedly.
+5. **Fail fast at boundaries.** Validate inputs at the entry point — the controller; surface invalid state early. Don't let bad data flow into the domain / data layer and crash unexpectedly.
 
 ## Promise composition (decision tree)
 
@@ -42,7 +46,7 @@ Take whichever completes first:              Promise.race
 First success, ignore rejections:            Promise.any
 Sequential dependence (b uses a's result):   await a; await b
 Parallel-independent in a loop:              Promise.all(items.map(...))
-Sequential in a loop:                         for-of with await (NOT .forEach)
+Sequential in a loop:                        for-of with await (NOT .forEach)
 ```
 
 ### Common LLM mistake: `await` inside `.map()` is parallel, not sequential
@@ -62,6 +66,8 @@ for (const item of items) {
 
 ### Common LLM mistake: `Promise.all` when one rejection is acceptable
 
+Fanning out over independent data sources in a service:
+
 ```ts
 // ❌ Fetching from 3 data sources; one failure kills everything
 const results = await Promise.all(sources.map(s => s.search(query)))
@@ -74,25 +80,27 @@ if (failed.length > 0) this.logger.warn('partial source failure', { failedCount:
 return ok
 ```
 
-This pattern fits any fan-out over independent sources (e.g. querying several data sources and merging results): one slow or failing source shouldn't blank the whole response.
+This pattern fits any fan-out over independent sources (e.g. firing several API calls in parallel to build one view, or querying several data sources and merging results): one slow or failing source shouldn't blank the whole result.
 
 ## Try/catch placement: at the boundary
 
-The model habit is to wrap every method:
+The model habit is to wrap every function:
 
 ```ts
 // ❌ Defensive try/catch everywhere — kills typed errors, adds noise, hides root cause
-async findOne(id: string) {
+async function fetchProject(id: string) {
   try {
-    return await this.repo.findById(id)
+    return await api.get(`/projects/${id}`)
   } catch (e) {
-    this.logger.error('find failed', e)
+    console.error('fetch failed', e)
     throw e   // re-throwing means the catch did nothing useful
   }
 }
 ```
 
-The correct shape: let typed exceptions propagate; catch only when you're transforming or genuinely handling.
+The correct shape: let typed errors propagate; catch only when you're transforming or genuinely handling.
+
+The service throws a domain exception; NestJS maps it to HTTP:
 
 ```ts
 // ✅ Repo throws ForbiddenException; service propagates; NestJS maps to 403
@@ -107,11 +115,11 @@ async findOne(id: string, organizationId: string) {
 
 - **Transform** — catch low-level error, throw a higher-level one with more context.
 - **Recover** — catch a specific failure mode and substitute a fallback (rare; prove the fallback is correct).
-- **Boundary fan-in** — at a chat-agent or API gateway level, mapping multiple kinds of upstream errors to a uniform response.
+- **Boundary fan-in** — at a chat-agent, API-aggregator, or API-gateway level, mapping multiple kinds of upstream errors to a uniform response.
 
 ### Forbidden reasons to catch
 
-- "Just to log" — the exception filter logs already.
+- "Just to log" — the exception filter logs already if configured.
 - "Just to be safe" — defensive programming becomes silent failure.
 - "Because the linter complained" — fix the linter rule.
 - "To return `null` instead" — see core rule #1.
@@ -119,6 +127,8 @@ async findOne(id: string, organizationId: string) {
 ## Timeouts and cancellation
 
 Use `AbortSignal.timeout(ms)` (Node 18+) for outbound calls. Propagate the signal so cancellation cascades.
+
+Accept an optional caller signal and combine with a timeout:
 
 ```ts
 async fetchExternal(query: string, signal?: AbortSignal): Promise<Result> {
@@ -133,7 +143,7 @@ async fetchExternal(query: string, signal?: AbortSignal): Promise<Result> {
 ### Common LLM mistake: timeout via `Promise.race` without cleanup
 
 ```ts
-// ❌ Operation continues running after race completes; resource leak
+// ❌ Operation continues running after race completes; resource leak; can't actually cancel the fetch
 await Promise.race([slowOp(), new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 5000))])
 
 // ✅ AbortSignal cancels the underlying op
@@ -142,30 +152,33 @@ await fetch(url, { signal: AbortSignal.timeout(5000) })
 
 ## Top-level handlers
 
-Node 15+ crashes on unhandled rejections by default. **Don't add `process.on('unhandledRejection')` to swallow them — that defeats the safety.** NestJS's exception filter handles request-scoped errors; for true top-level (e.g., a setInterval callback), wrap the callback body in try/catch and log + decide.
+The runtime crashes on unhandled rejections by default — Node 15+ exits the process. **Don't add a global handler (`process.on('unhandledRejection', ...)`) just to swallow them — that defeats the safety.**
+
+NestJS's exception filter handles request-scoped errors; for true top-level work (e.g., a `setInterval` callback), wrap the callback body in try/catch and log + decide.
 
 ## Common LLM mistakes (catch these in `code-reviewer`)
 
 1. **Defensive try/catch around every await.** Each one obliterates typed errors. Catch only when transforming or recovering.
-2. **Returning `null` on failure.** Throw a NestJS exception with context.
+2. **Returning `null` on failure.** Throw with context — a NestJS exception.
 3. **`await` inside `.map()` thinking it's sequential.** It runs in parallel.
 4. **`.forEach(async ...)`.** Doesn't await — fire-and-forget. Use `for-of` or `Promise.all(map)`.
 5. **`Promise.all` when partial-success is acceptable.** Use `Promise.allSettled`.
 6. **Custom timeout via `Promise.race`.** Use `AbortSignal.timeout()`.
-7. **Catching to log then re-throw.** The filter logs. The catch does nothing.
+7. **Catching to log then re-throw.** The boundary (exception filter) handles it. The catch does nothing.
 8. **Adding retries.** Forbidden by CLAUDE.md P5. The caller decides.
 9. **Async functions returning `Promise<void>` and the caller not awaiting** — fire-and-forget. The error vanishes.
 10. **`async` keyword on a function that has no `await`.** Wraps the return value in a Promise needlessly. Drop the keyword.
 
 ## Repo-fit examples
 
-- `ChatAgentService` — parallel per-source search across `ProjectDataSource[]`. Should use `Promise.allSettled` so one source's failure doesn't blank the response. Filter to `ready` sources first (per `repo-conventions`).
+- Service-level parallel per-source search across a data-source array — should use `Promise.allSettled` so one source's failure doesn't blank the response. Filter to `ready` sources first (per `repo-conventions`).
 - Repository methods (`*.database-repository.ts`) — let DB errors propagate; the service throws domain exceptions (`NotFoundException` etc.); the exception filter maps to HTTP.
-- External HTTP calls (Airweave, etc.) — wrap in `AbortSignal.timeout()`; throw `HttpException` on non-2xx; let it propagate.
+- External HTTP calls — wrap in `AbortSignal.timeout()`; throw `HttpException` on non-2xx; let it propagate.
 
 ## Cross-references
 
-- `repo-conventions` § "Error handling" — NestJS exception types this codebase uses.
-- `nestjs-patterns/patterns/cross-cutting.md` — exception filter is the boundary handler.
+- `repo-conventions` § "Error handling" — the error surfaces this codebase uses (NestJS exception types).
 - `failure-mode-analysis` — `network` and `partial` categories enumerate failure modes this skill helps handle.
+- `nestjs-patterns/patterns/cross-cutting.md` — exception filter is the boundary handler.
+- `database-transactions` — error flow across transaction boundaries; an in-flight failure must roll back, not be swallowed.
 - `CLAUDE.md` P5 — fail-fast, no retries, root-cause focus.

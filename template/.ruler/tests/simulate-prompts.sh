@@ -1,25 +1,21 @@
 #!/usr/bin/env bash
-# simulate-prompts.sh — static skill-trigger simulation.
+# simulate-prompts.sh — static skill-trigger simulation for the NestJS harness.
 #
 # This is NOT an LLM run. It's a static contract test: for each canonical
 # (prompt, expected_skills) case, assert that every expected skill's
 # description contains enough keywords from the prompt that the LLM's
 # description-match heuristic would plausibly load it.
 #
-# Failure means trigger drift: either the skill description was weakened,
-# or the prompt's expected skill list is now stale. Either way, the
-# acceptance test catches it before silent skill-skipping ships.
+# Failure means trigger drift: either a skill description was weakened,
+# or the prompt's expected skill list is now stale. Fix the side that's wrong.
 #
-# Threshold: every expected skill must contain ≥1 lowercased prompt token
-# (length ≥4) in its description. Stop-words filtered. Threshold=1 catches
-# description drift (a removed trigger keyword fails the test) without
-# false positives on prompts whose obvious keywords are short (bug, git, db).
+# Threshold: every expected skill must contain >=1 lowercased prompt token
+# (length >= 4) in its description. Stop-words filtered.
 #
-# Usage: bash .claude/tests/simulate-prompts.sh
+# Usage: bash .ruler/tests/simulate-prompts.sh
 
 set -uo pipefail
 
-# Validate the SHIPPED template tree directly (no `ruler apply` needed).
 RULER_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 INSTRUCTIONS="$RULER_DIR/instructions.md"
 
@@ -27,21 +23,21 @@ PASS=0
 FAIL=0
 FAILED=""
 
-# Stop-words excluded from keyword matching (too generic to be meaningful triggers).
-STOP_WORDS="the a an this that these those is are was were be been being have has had do does did will would could should may might can must shall and or but if then else when while of in on at by for to from with into onto over under up down out off about a our we i you they it its their our we my your"
+STOP_WORDS="the a an this that these those is are was were be been being have has had do does did will would could should may might can must shall and or but if then else when while of in on at by for to from with into onto over under up down out off about our we i you they it its their my your add new use using fix update create make build write test"
 
-# Returns description (single line) for a given skill name.
 skill_description() {
   local name="$1"
   local f="$RULER_DIR/skills/$name/SKILL.md"
-  if [ ! -f "$f" ]; then
-    echo ""
-    return
-  fi
-  awk '/^description:/{sub(/^description:[[:space:]]*/,""); print; exit}' "$f" | tr '[:upper:]' '[:lower:]'
+  if [ ! -f "$f" ]; then echo ""; return; fi
+  # Handles both inline (description: text) and block-scalar (description: |) forms.
+  awk '
+    /^description:[[:space:]]*[|>][-+]?[[:space:]]*$/ { block=1; next }
+    /^description:/ { sub(/^description:[[:space:]]*/,""); print; exit }
+    block && /^[[:space:]]+/ { print; next }
+    block { exit }
+  ' "$f" | tr '\n' ' ' | tr '[:upper:]' '[:lower:]'
 }
 
-# Tokenise prompt: lowercase, strip non-alpha, drop stop-words, drop tokens <4 chars.
 prompt_tokens() {
   local p="$1"
   echo "$p" | tr '[:upper:]' '[:lower:]' \
@@ -54,22 +50,18 @@ prompt_tokens() {
     | sort -u
 }
 
-# Count how many prompt tokens appear in skill description (substring match).
 match_count() {
   local prompt="$1" desc="$2"
   local count=0
   while IFS= read -r tok; do
     [ -z "$tok" ] && continue
-    if printf '%s' "$desc" | grep -q "$tok"; then
-      count=$((count+1))
-    fi
+    if printf '%s' "$desc" | grep -q "$tok"; then count=$((count+1)); fi
   done <<EOF
 $(prompt_tokens "$prompt")
 EOF
   echo "$count"
 }
 
-# Assert: for the given (prompt, expected_skill), description contains ≥THRESHOLD prompt tokens.
 THRESHOLD=1
 check_case() {
   local case_name="$1" prompt="$2" expected_skill="$3"
@@ -77,178 +69,213 @@ check_case() {
   desc=$(skill_description "$expected_skill")
   if [ -z "$desc" ]; then
     echo "FAIL: $case_name — skill '$expected_skill' has no description (or skill missing)"
-    FAIL=$((FAIL+1)); FAILED="$FAILED $case_name:$expected_skill"
-    return
+    FAIL=$((FAIL+1)); FAILED="$FAILED $case_name:$expected_skill"; return
   fi
   local n
   n=$(match_count "$prompt" "$desc")
   if [ "$n" -ge "$THRESHOLD" ]; then
-    echo "PASS: $case_name → $expected_skill (matched $n keyword(s))"
+    echo "PASS: $case_name → $expected_skill ($n keyword(s) matched)"
     PASS=$((PASS+1))
   else
-    echo "FAIL: $case_name → $expected_skill (only $n keyword(s) matched, need ≥$THRESHOLD)"
+    echo "FAIL: $case_name → $expected_skill (only $n keyword(s), need >=$THRESHOLD)"
     echo "  prompt: $prompt"
     echo "  desc[:200]: ${desc:0:200}"
     FAIL=$((FAIL+1)); FAILED="$FAILED $case_name:$expected_skill"
   fi
 }
 
-# Assert: the workflow chain table in CLAUDE.md mentions all expected skills for the case.
-# Loose check: every expected skill name appears at least once in the "Workflow chains" section.
+run_case() {
+  local id="$1" prompt="$2" expected_csv="$3"
+  IFS=',' read -ra skills <<< "$expected_csv"
+  for s in "${skills[@]}"; do check_case "$id" "$prompt" "$s"; done
+}
+
 check_workflow_chain_mentions() {
   local case_name="$1" expected_skills_csv="$2"
   local section
-  section=$(awk '/^## Workflow chains/{flag=1} flag; /^## /{if(NR>1 && flag && !/^## Workflow chains/) flag=0}' "$INSTRUCTIONS")
+  section=$(awk '/^## WORKFLOW CHAINS/,/^---$/' "$INSTRUCTIONS")
   IFS=',' read -ra arr <<< "$expected_skills_csv"
   for s in "${arr[@]}"; do
     if printf '%s' "$section" | grep -q "$s"; then
-      echo "PASS: $case_name workflow-chain mentions $s"
-      PASS=$((PASS+1))
+      echo "PASS: $case_name workflow-chain mentions $s"; PASS=$((PASS+1))
     else
-      echo "FAIL: $case_name workflow-chain missing mention of $s"
+      echo "FAIL: $case_name workflow-chain missing $s"
       FAIL=$((FAIL+1)); FAILED="$FAILED $case_name:chain:$s"
     fi
   done
 }
 
-echo "=== Skill-loading simulation: prompt → expected skill descriptions ==="
+echo "=== Skill-trigger simulation: prompt → expected skill descriptions (NestJS) ==="
+echo
+echo "NOTE: Per P3.4, several skills (tdd-workflow, repo-conventions, design-review,"
+echo "failure-mode-analysis, plan-mode, async-error-handling, database-transactions,"
+echo "db-write-protocol, cross-repo-workspace) are MANDATORY for the matching code"
+echo "change — they fire regardless of description match. Per-case keyword assertions"
+echo "below only cover DISCRETIONARY skills (those whose triggering depends on the"
+echo "prompt's content)."
+echo
 
-# Format: case_id | prompt | expected skills (csv)
-# Each prompt is phrased as a typical user request; the expected skills are those
-# the model SHOULD load via description match. Failure ⇒ description has drifted
-# OR the case is now stale and needs updating.
-run_case() {
-  local id="$1" prompt="$2" expected_csv="$3"
-  IFS=',' read -ra skills <<< "$expected_csv"
-  for s in "${skills[@]}"; do
-    check_case "$id" "$prompt" "$s"
-  done
-}
-
-# NOTE: Per CLAUDE.md P3.4, several skills (tdd-workflow, repo-conventions, design-review,
-# failure-mode-analysis) are MANDATORY for any executable-code change — they fire regardless
-# of description keyword match. Per-case keyword assertions below only cover DISCRETIONARY
-# skills (those whose triggering depends on the prompt's content). Workflow-chain coverage
-# (later in this file) validates mandatory skills are documented in CLAUDE.md.
-
-# Bug fix flow — discretionary trigger: bug-investigation
-run_case "bug-fix-clear" \
-  "given the failing test report investigate the broken login incident" \
-  "bug-investigation"
-
-# New feature flow — discretionary trigger: plan-mode (multi-file architectural)
-run_case "new-feature" \
-  "plan a non-trivial multi-file architectural change adding a chat endpoint with database persistence" \
-  "plan-mode"
-
-# Async / external integration — discretionary triggers
-run_case "async-timeout" \
-  "writing async promise composition with abortsignal timeouts and error propagation" \
-  "async-error-handling"
-
-# Multi-statement DB write — discretionary triggers
+# ============================ NESTJS STACK ==================================
+echo "--- Case: multi-statement DB write"
 run_case "multi-statement-db" \
   "implementing multi-statement database insert update delete across multiple rows tables atomic" \
   "database-transactions,db-write-protocol"
 
-# Pure DB write protocol
+echo
+echo "--- Case: single DB write"
 run_case "single-write" \
   "delete inactive sessions from the database" \
   "db-write-protocol"
 
-# Cyclomatic complexity
-run_case "branchy-function" \
-  "this function has many nested conditional branches and growing if-else chains" \
-  "cyclomatic-complexity"
-
-# NestJS provider/cross-cutting design — discretionary trigger: nestjs-patterns
+echo
+echo "--- Case: NestJS tactical patterns"
 run_case "nestjs-guard" \
   "design a nestjs guard pipe interceptor middleware provider with usefactory dynamic forroot" \
   "nestjs-patterns"
 
-# Git workflow
-run_case "git-rebase" \
-  "rebase the feature branch onto master and force push" \
-  "git-workflow"
+echo
+echo "--- Case: NestJS best-practice rules"
+run_case "nestjs-rules" \
+  "reviewing nestjs code for proper modules dependency injection security and performance patterns" \
+  "nestjs-best-practices"
 
-# CI failure investigation — discretionary triggers
-run_case "ci-failure" \
-  "given the failing test investigate the production incident broken on continuous integration" \
-  "bug-investigation"
+echo
+echo "--- Case: new domain module (clean architecture)"
+run_case "clean-arch" \
+  "designing a new domain module with the presentation application infrastructure layers dependency rule repository port" \
+  "nestjs-clean-architecture"
 
-# Performance hot path
+echo
+echo "--- Case: node framework / async / security decisions"
+run_case "node-defaults" \
+  "nodejs framework selection async patterns security and architecture decisions" \
+  "nodejs-best-practices"
+
+# ============================ SHARED / PROCESS ==============================
+echo
+echo "--- Case: failing test / bug"
+run_case "bug-failing-test" \
+  "This test is failing intermittently in CI — investigate the root cause" \
+  "bug-investigation,failure-mode-analysis"
+
+echo
+echo "--- Case: planning a non-trivial change"
+run_case "plan-feat" \
+  "Plan a refactor that splits the billing module into three smaller modules" \
+  "plan-mode,bug-investigation"
+
+echo
+echo "--- Case: structural decision / ADR"
+run_case "adr-decision" \
+  "We need to decide between TypeORM and Prisma for the new persistence layer; document the rationale" \
+  "documentation-and-adrs,decision-rules"
+
+echo
+echo "--- Case: complex generics"
+run_case "ts-generics" \
+  "Define a type-safe generic repository with conditional return types based on the input shape" \
+  "typescript-advanced-types"
+
+echo
+echo "--- Case: async error handling"
+run_case "async-patterns" \
+  "Refactor this Promise.all to allow partial failures using Promise.allSettled with AbortSignal" \
+  "async-error-handling"
+
+echo
+echo "--- Case: cyclomatic complexity"
+run_case "complexity-nested" \
+  "Flatten the nested conditionals in this function using guard clauses and early returns" \
+  "cyclomatic-complexity"
+
+echo
+echo "--- Case: hot-path performance"
 run_case "perf-hotpath" \
   "optimize this hot loop performance for large datasets and high frequency events" \
   "js-performance-patterns"
 
-# Large unfamiliar codebase
-run_case "large-codebase" \
-  "explore this large unfamiliar codebase and dense context with multiple modules" \
-  "rlm-explore"
-
-# Skill library audit
-run_case "skill-audit" \
-  "review the skill library quality and check for misfiring overlapping skills" \
-  "meta-skill-hygiene"
-
-# TypeScript advanced types
-run_case "ts-generics" \
-  "build a reusable generic type utility with conditional and mapped types" \
-  "typescript-advanced-types"
-
-# Failure mode analysis pre-test — discretionary trigger
-run_case "failure-modes" \
-  "before writing the failing test anticipate enumerate failure modes null empty large race partial" \
-  "failure-mode-analysis"
-
-# Refactor without behavior change — discretionary trigger: code-simplifier
+echo
+echo "--- Case: cleanup / simplification"
 run_case "refactor-cleanup" \
   "simplify recently modified code clarity consistency maintainability preserve behavior cleanup" \
   "code-simplifier"
 
-# Design review (always before declaring done)
+echo
+echo "--- Case: design review"
 run_case "design-review" \
   "before declaring this code change complete review against SOLID DRY KISS principles" \
   "design-review"
 
-# Plan mode
-run_case "plan-architectural" \
-  "plan a multi-file architectural change across several modules with verification steps" \
-  "plan-mode"
-
-# Decision rules ambiguous request
-run_case "ambiguous-request" \
-  "the user request is ambiguous and scope is unclear which decision rule applies" \
-  "decision-rules"
-
-# Pushback templates
-run_case "pushback-simpler" \
-  "i need to push back on the user with a simpler in-scope alternative" \
-  "pushback-templates"
-
-# Repo conventions — discretionary trigger pairs with tdd-workflow per its description
-run_case "repo-conventions-trigger" \
-  "implementing reviewing refactoring executable code repository nestjs typeorm rbac scope" \
-  "repo-conventions"
-
-# === Workflow-chain coverage assertions ===
-# For canonical task types, the CLAUDE.md "Workflow chains" section should
-# mention every expected skill so a senior engineer reading the chain table
-# sees the same recipe the model would assemble from description match.
 echo
-echo "=== Workflow-chain coverage (instructions.md mentions every expected skill) ==="
-check_workflow_chain_mentions "bug-fix-flow"      "bug-investigation,failure-mode-analysis,tdd-workflow,repo-conventions,design-review"
-check_workflow_chain_mentions "new-feature-flow"  "plan-mode,failure-mode-analysis,tdd-workflow,repo-conventions,design-review"
-check_workflow_chain_mentions "refactor-flow"     "code-simplifier,cyclomatic-complexity,repo-conventions,design-review"
-check_workflow_chain_mentions "perf-flow"         "rlm-explore,js-performance-patterns,failure-mode-analysis,tdd-workflow,design-review"
-check_workflow_chain_mentions "async-flow"        "async-error-handling,failure-mode-analysis,tdd-workflow,design-review"
-check_workflow_chain_mentions "nestjs-design"     "nestjs-best-practices,nestjs-patterns,repo-conventions,design-review"
+echo "--- Case: skill-library audit"
+run_case "skill-audit" \
+  "review the skill library quality and check for misfiring overlapping skills" \
+  "meta-skill-hygiene"
 
 echo
-echo "==========================="
-echo "Simulation results: $PASS passed, $FAIL failed"
-if [ "$FAIL" -gt 0 ]; then
-  echo "Failed:$FAILED"
+echo "--- Case: PR creation"
+run_case "git-pr" \
+  "Commit the changes and open a pull request against main" \
+  "git-workflow"
+
+echo
+echo "--- Case: simpler alternative + pushback"
+run_case "pushback" \
+  "The user proposed introducing a new library; surface a simpler alternative and the scope tradeoff before deciding the framing" \
+  "pushback-templates,decision-rules"
+
+echo
+echo "--- Case: CI / pre-commit quality gate"
+run_case "quality-gate" \
+  "set up the CI pipeline and pre-commit hooks to run typecheck lint and tests on every pull request" \
+  "quality-gates"
+
+echo
+echo "--- Case: unfamiliar codebase"
+run_case "rlm" \
+  "I'm new to this repo — help me understand the billing module's architecture" \
+  "rlm-explore,repo-conventions"
+
+echo
+echo "--- Case: spec before code"
+run_case "spec-first" \
+  "Before implementing the new invoicing behavior, write the specification and clarify the requirements" \
+  "spec-workflow"
+
+# ============================ CROSS-REPO ====================================
+echo
+echo "--- Case: cross-repo coordination (sibling frontend repo)"
+run_case "cross-repo-feat" \
+  "Add a /users/me endpoint in this repo that the frontend repo's useMe() hook will consume — coordinate the contract shape across both repositories" \
+  "cross-repo-workspace"
+
+# ============================ WORKFLOW-CHAIN MENTIONS =======================
+echo
+echo "=== Workflow-chain mention checks (instructions.md WORKFLOW CHAINS section) ==="
+check_workflow_chain_mentions "feature-flow" \
+  "nestjs-clean-architecture,nestjs-best-practices,nestjs-patterns,database-transactions,repo-conventions,design-review"
+check_workflow_chain_mentions "bug-fix-flow" \
+  "bug-investigation,failure-mode-analysis,tdd-workflow,repo-conventions,design-review"
+check_workflow_chain_mentions "refactor-flow" \
+  "plan-mode,tdd-workflow,code-simplifier,cyclomatic-complexity,repo-conventions,design-review"
+check_workflow_chain_mentions "perf-flow" \
+  "rlm-explore,js-performance-patterns,failure-mode-analysis,design-review"
+check_workflow_chain_mentions "async-flow" \
+  "async-error-handling,failure-mode-analysis,tdd-workflow,repo-conventions,design-review"
+
+# ============================ FINAL REPORT ==================================
+echo
+echo "============================================================"
+echo "Simulation summary: $PASS PASS / $FAIL FAIL"
+echo "============================================================"
+if [ $FAIL -gt 0 ]; then
+  echo "Failed cases:$FAILED"
+  echo
+  echo "Drift signal — either:"
+  echo "  (a) a skill description was weakened (removed a load-bearing keyword), OR"
+  echo "  (b) the test case is stale (the prompt's expected skill list no longer reflects intent)"
+  echo
+  echo "Fix the side that's actually wrong. Don't just rubber-stamp."
   exit 1
 fi
 exit 0

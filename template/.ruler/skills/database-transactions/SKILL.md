@@ -1,6 +1,10 @@
 ---
 name: database-transactions
 description: Use when implementing or reviewing multi-statement database operations — INSERT/UPDATE/DELETE across multiple rows or tables, read-then-write patterns, or any business operation that must be atomic. NOT for single-statement reads, single-statement writes against one row, or pure SELECT investigations.
+harness:
+  tier: backend
+  family: data
+  gist: "Multi-statement writes made atomic"
 ---
 
 # Database Transactions

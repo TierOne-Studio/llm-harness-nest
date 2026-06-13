@@ -1,45 +1,56 @@
 ---
 name: repo-conventions
-description: Use ALWAYS when implementing, reviewing, or refactoring executable code in this repository; pair with tdd-workflow. ALSO use when discussing this repo's architecture, authz/RBAC, error handling, persistence, logger conventions, DTO style, or any repo-specific decision — even on non-code turns (the skill primes the model on the binding conventions that CLAUDE.md does not enumerate). Documents conventions specific to THIS codebase: NestJS module layout, repository pattern, authz contract, error handling, logging, DTO style, naming. NOT for generic NestJS questions (use nestjs-best-practices instead) or read-only investigations of unrelated codebases.
+description: Use ALWAYS when implementing, reviewing, or refactoring executable code in this repository; pair with `tdd-workflow`. ALSO use when discussing this project's architecture or backend conventions (NestJS module layout, repository pattern, authz/RBAC, error handling, logging, DTO style) — even on non-code turns. Documents the conventions specific to THIS NestJS codebase (the stack, the layering, the binding choices). NOT for generic NestJS questions (use the stack skills) or read-only investigations of unrelated codebases.
+harness:
+  tier: shared
+  family: process
+  gist: "YOUR repo's binding facts (fill-in skeleton, both tiers + seam)"
 ---
 
 # Repo Conventions
 
-The conventions a senior engineer joining this codebase needs in their head. Pair this skill with `tdd-workflow` and `design-review` on any code change. Diverge from these only with explicit reason and explicit user approval.
+The grounding skill for *this* repository. Generic advice lives in the stack skills (the `nestjs-*` family); this skill captures the **binding decisions** of *this project* — the choices a contributor cannot infer from generic best practice and must not silently deviate from. Pair it with `tdd-workflow` and `design-review` on any code change. Diverge only with explicit reason and explicit user approval.
 
-> **This is a fill-in skeleton.** It ships with a generic NestJS scaffold. Replace each `<!-- FILL IN -->` block with YOUR repo's actual conventions, and delete the generic examples that don't apply. Document load-bearing decisions (ones that constrain future code) as ADRs and cite them in the relevant section — see `documentation-and-adrs` for the discipline. Don't restate the *why* inline; the ADR holds the *why*, this skill holds the *how to follow it today*.
+> **How to use this skeleton:** fill in each `<!-- FILL IN: ... -->` with what *your* project actually does. Delete sections that don't apply, add ones that do. The libraries named below (NestJS, TypeORM/Prisma/Mongoose, Jest, JWT) are *illustrations* — record the ones you actually picked. Document load-bearing decisions as ADRs and cite them here for the *why*; this skill captures the *what*. See `documentation-and-adrs` for the discipline.
 
-## 0. Domain glossary — terms used throughout the codebase
+## 0. Domain glossary
 
-Anchor terms a contributor needs in their head before touching feature code. Use these terms exactly in code, tests, commits, and PR descriptions — drift produces ambiguity that surfaces as bugs ("user vs account vs member"). Add a term when a new concept becomes load-bearing across modules.
+Project-specific terms, roles, and entities a newcomer would otherwise misread. Use these terms exactly in code, tests, commits, and PR descriptions — drift ("user vs account vs member") surfaces as bugs.
 
-<!-- FILL IN: your repo's load-bearing domain terms. Example rows below — replace with yours. -->
+<!-- FILL IN: domain terms and their meanings, e.g. "Workspace = top-level tenant; a User belongs to 1+ Workspaces; the unit of authz scoping." -->
 
-| Term | Definition |
-|---|---|
-| **\<Tenant\>** | The tenant/isolation boundary, if multi-tenant. The unit of authz scoping. |
-| **User** | Authenticated identity. Define how a user relates to tenants/roles in YOUR model. |
-| **\<Domain entity\>** | The primary thing users author against. |
-| **DTO** | Request/response shape. State whether you use plain types or validated classes (see § 8). |
-| **Repository** | Data-access class for a module (see § 4). |
+## 1. Project layout
 
-Terms NOT in this glossary are not load-bearing — name module-local concepts in the module's own README.
+This is a standalone NestJS backend. Document the top-level layout, what each directory owns, and the rule for "where does this new code go?".
 
-## 1. Stack at a glance
+A common layout:
 
-The framework + datastore + test runner + auth mechanism a contributor must know on day one.
+```
+<repo>/
+├── src/
+│   ├── modules/<domain>/   — domain modules (controllers, services, repositories; see § 3)
+│   ├── common/             — cross-cutting code (guards, filters, interceptors, decorators)
+│   ├── config/             — configuration loading and validation
+│   └── main.ts             — bootstrap
+├── test/                   — integration / e2e tests (`*.e2e-spec.ts`)
+└── ...                     — migrations, scripts, docs
+```
+
+<!-- FILL IN: your actual src/ layout, the dev/build/test scripts at the root, and the placement rule (which directory owns a new concern). Note any import rules (e.g. modules may import from common/ but never from each other's internals). -->
+
+## 2. Stack at a glance
+
+The libraries and versions that define how this service is built. Be specific — version-major matters (NestJS 10 vs 11, TypeORM 0.2 vs 0.3).
 
 - **Framework:** NestJS (see `package.json` for exact version).
 - **Database / persistence:** <!-- FILL IN: e.g. Postgres + TypeORM, MongoDB + Mongoose, Prisma. State the default and any fallback. -->
-- **Tests:** <!-- FILL IN: e.g. Jest with ts-jest, or Vitest. Where the config lives; where E2E config lives. -->
-- **Auth:** <!-- FILL IN: e.g. JWT, session-based, an external provider. How identity is attached to the request and read in handlers. -->
+- **Tests:** <!-- FILL IN: e.g. Jest with ts-jest. Where the config lives. -->
+- **Auth:** <!-- FILL IN: how a request is authenticated — e.g. JWT bearer tokens verified by a guard, session cookies, API keys. Where the secret/keys live, which guard verifies, how the principal reaches handlers. -->
 - **Other binding choices:** <!-- FILL IN: anything a newcomer would otherwise get wrong. -->
 
-## 2. Module layout (per domain)
+## 3. Module layout (per domain)
 
-How a domain module is structured. A common NestJS layout is a 4-layer (presentation / application / domain / infrastructure) split with a dependency rule pointing inward; a simpler feature-folder layout is also fine for CRUD-only modules. Pick one, document it, and apply it consistently. For deeper patterns see the `nestjs-clean-architecture` and `nestjs-patterns` skills.
-
-Generic example layout:
+How a NestJS domain module is structured. A common layout is a 4-layer (presentation / application / domain / infrastructure) split with a dependency rule pointing inward; a simpler feature-folder layout is fine for CRUD-only modules. Pick one and apply it consistently. For depth see `nestjs-clean-architecture` and `nestjs-patterns`.
 
 ```
 src/modules/<domain>/
@@ -55,25 +66,22 @@ src/modules/<domain>/
 └── <domain>.module.ts
 ```
 
-<!-- FILL IN: your actual module layout, where cross-cutting code lives (config, decorators, guards, shared utils), and any deviations for CRUD vs rich-domain modules. -->
+<!-- FILL IN: your actual module layout, where cross-cutting code lives (config, decorators, guards, shared utils), and deviations for CRUD vs rich-domain modules. -->
 
-## 3. RBAC / authz contract
+## 4. RBAC / authz contract
 
-If the app has authorization, this is its most load-bearing surface — document the contract precisely so every new route applies it the same way. Capture the decorator/guard mechanism, how tenant/scope is resolved, and the exact error code for each failure. Treat authz as a high-risk surface (defense in depth: guard the route AND scope the query).
+If the app has authorization, this is its most load-bearing surface — document the contract so every new route applies it the same way. The API is the **real** security boundary: any client-side checks in consumer UIs are a UX affordance, not enforcement. Treat authz as high-risk (defense in depth: guard the route AND scope the query).
 
 <!-- FILL IN: your authz model. Suggested structure below. -->
 
 ### Decorator + guard
-
 <!-- FILL IN: how a route declares its required permission/role, and which guard enforces it. -->
 
 ### Scope / tenant resolution
-
-<!-- FILL IN: how the request's tenant/scope is resolved, what the default is, and when cross-tenant access is allowed (and who may do it). -->
+<!-- FILL IN: how the request's tenant/scope is resolved, the default, and when cross-tenant access is allowed (and who may). -->
 
 ### Error mapping for authz failures
-
-<!-- FILL IN: the exact HTTP code per failure. Decide deliberately and keep it consistent. Generic example: -->
+<!-- FILL IN: the exact HTTP code per failure. Generic example: -->
 
 | Failure | HTTP code |
 |---|---|
@@ -81,19 +89,16 @@ If the app has authorization, this is its most load-bearing surface — document
 | Invalid/malformed request | 400 |
 | Missing required context | 403 |
 
-Pick a deliberate policy on hiding-vs-revealing (e.g., never return 404 to mask a permission failure) and state it here.
+Pick a deliberate hiding-vs-revealing policy (e.g. never return 404 to mask a permission failure) and state it.
 
 ### When you write a new route
-
 1. Declare the required permission/role on the handler — no exceptions for "internal" routes.
 2. Scope every query by the resolved tenant in the service/repository — never trust the guard alone.
 3. Add a negative test (a caller from another tenant / without the permission is rejected).
 
-## 4. Persistence / repository pattern
+## 5. Persistence / repository pattern
 
-How data access is structured. A common, testable pattern: define a domain interface (port), implement it with your ORM/driver (adapter), and depend on the interface in service code. Document your default and any sanctioned fallback (e.g., raw SQL for queries the ORM can't express).
-
-Generic port + adapter example:
+A common, testable pattern: define a domain interface (port), implement it with your ORM/driver (adapter), and depend on the interface in service code.
 
 ```ts
 // port (domain)
@@ -110,27 +115,17 @@ export class <Domain>Repository implements I<Domain>Repository {
 }
 ```
 
-<!-- FILL IN: your default persistence approach, the rules around it, when (if ever) a fallback is allowed, how migrations are run, and any module load-order coupling to watch for. -->
+<!-- FILL IN: your default persistence approach, the rules, when a fallback (e.g. raw SQL) is allowed, how migrations run, and any module load-order coupling. -->
 
-Common rules worth adopting (adapt to your stack):
-
+Common rules worth adopting:
 - Always scope tenant-owned queries by the tenant id, even behind a route guard.
-- Depend on the interface in service code; wire the concrete via the module providers.
+- Depend on the interface in service code; wire the concrete via module providers.
 - Parameterize all queries — never interpolate user input into SQL.
 - Use a transaction for multi-statement writes (see `database-transactions`).
 
-## 5. Domain feature pattern
-
-Use this section for a recurring, repo-specific pattern that isn't covered by the generic CRUD module — e.g. a pluggable provider/strategy registry, a pipeline, an event/state machine, or any multi-component feature contributors must wire consistently.
-
-<!-- FILL IN: describe your repo's signature feature pattern, OR delete this section if you have none.
-     Document: the entity model, how variants/providers are registered, and the step-by-step to extend it. -->
-
 ## 6. Error handling
 
-State how errors are thrown and mapped to HTTP responses. NestJS ships built-in HTTP exceptions (`NotFoundException`, `ForbiddenException`, `BadRequestException`, …) that auto-map to status codes — a common default. Whatever you choose, make it uniform so a plain `Error` never silently becomes an unhelpful 500.
-
-Generic example (NestJS built-ins):
+NestJS ships built-in HTTP exceptions (`NotFoundException`, `ForbiddenException`, `BadRequestException`, …) that auto-map to status codes — a common default. Make it uniform so a plain `Error` never silently becomes an unhelpful 500. This error contract is part of the published API contract (§ 9) — keep them in sync.
 
 ```ts
 if (!entity) throw new NotFoundException('Entity not found');
@@ -138,55 +133,58 @@ if (!authorized) throw new ForbiddenException('Access denied');
 if (!isValid(input)) throw new BadRequestException('Invalid input');
 ```
 
-<!-- FILL IN: your error-handling contract — built-in exceptions vs a custom error type, whether you use a global exception filter, and where plain Error is acceptable (e.g., bootstrap/config, outside the request lifecycle). -->
+<!-- FILL IN: your error contract — built-in exceptions vs a custom error type, whether you use a global exception filter, and where a plain Error is acceptable (bootstrap/config, outside the request lifecycle). -->
 
 ## 7. Logger
 
-State the logging mechanism and discipline. NestJS's built-in `Logger` (one instance per class, `new Logger(MyService.name)`) is a reasonable default; structured loggers (pino, winston) are common alternatives. Document the choice, the log-level discipline, what context to include, and what must never be logged.
-
-<!-- FILL IN: your logger choice, whether you have request-id/correlation and structured logging, and any redaction helper. -->
+<!-- FILL IN: your logger choice (NestJS `Logger`, pino, winston), whether you have request-id/correlation + structured logging, and any redaction helper. -->
 
 ### Log-level discipline (adopt or adapt)
-
 - `debug` — dev-time verbose tracing.
 - `log`/info — normal-flow milestones worth keeping in prod.
 - `warn` — degraded but recoverable / partial failure.
-- `error` — an exception about to propagate or a genuine failure. Don't log expected conditions (e.g., user input errors) at `error`.
+- `error` — an exception about to propagate or a genuine failure. Don't log expected conditions (user input errors) at `error`.
 
-### What to log / what never to log
-
+### What to log / never log
 Include enough context to debug from the log alone: entity ids, operation name, outcome, caller scope.
-
 NEVER log: passwords or hashes, session/bearer tokens, API keys, PII, billing data, or whole request bodies. If there's no automatic redaction, redact at the call site or don't log the field.
 
 ## 8. DTOs and validation
 
-State the DTO style and where validation happens. Two common NestJS approaches: (a) `class-validator` decorators + a global `ValidationPipe` (auto-enforced), or (b) plain types/interfaces with manual validation in controllers/services. Pick one and apply it consistently; separate request shapes from response shapes either way.
-
-Generic example:
-
-```ts
-export interface Create<Entity>Input {
-  name: string;
-  description?: string;
-}
-```
+Two common NestJS approaches: (a) `class-validator` decorators + a global `ValidationPipe` (auto-enforced), or (b) plain types/interfaces with manual validation. Pick one and apply it consistently; separate request shapes from response shapes either way, and keep both aligned with the published API contract (§ 9).
 
 <!-- FILL IN: your DTO style (types vs validated classes), whether a global ValidationPipe is in place, and where runtime validation of user input happens. -->
 
-## 9. Tests
+## 9. API contract
 
-State the test tooling, naming, and layout so new tests match.
+A standalone API still publishes a contract its consumers depend on. Document where the source of truth lives and how consumers obtain it.
 
-<!-- FILL IN: test runner + config location; unit vs E2E naming (e.g. *.spec.ts vs *.e2e-spec.ts); co-located vs centralized; where setup/teardown/helpers live. -->
+<!-- FILL IN: where the contract source of truth lives — an OpenAPI/Swagger spec (e.g. generated from decorators via @nestjs/swagger), an exported types package, or the DTO definitions themselves — and how consumers obtain it (a served /docs endpoint, a published npm package, a checked-in spec file). -->
 
-Common convention: unit specs co-located next to source (`<thing>.spec.ts`), E2E specs in a top-level test dir. Always test the negative/unauthorized path, not just the happy path.
+**Guidance worth keeping:**
+- DTOs and response shapes **must not drift from the published contract**. A change to the contract is a backward-compatibility event for every consumer — update the contract artifact in the same change, or version it. A breaking change shipped without updating the contract is a HIGH-severity defect.
+- Treat error shapes and status codes (§ 4, § 6) as part of the contract, not an implementation detail.
+- When a sibling consumer repo depends on this API, see `cross-repo-workspace` for coordinating a contract change across repositories.
 
-## 10. Naming conventions
+## 10. Testing
 
-State class suffixes, file-name casing, and symbol-name rules so contributors don't invent their own.
+| Layer | Common tooling | Lives in |
+|---|---|---|
+| Unit | Jest | co-located `*.spec.ts` |
+| Integration / e2e | supertest / Nest testing module | `test/` (`*.e2e-spec.ts`) |
 
-<!-- FILL IN: your suffix table and naming rules. Generic starting point below. -->
+<!-- FILL IN: your runner + config locations, the unit/integration/e2e split, whether integration tests run against a real database (e.g. real Postgres via docker-compose) or in-memory fakes, the coverage commands, and the root npm scripts. -->
+
+**Guidance worth keeping:**
+- Test through the module's public surface; mock at the port (repository interface), not the ORM.
+- **Always test the unauthorized/failure path** — guard bypass, expired session, cross-tenant access, invalid input, empty state.
+- Keep at least one smoke path green that exercises the real HTTP surface end to end.
+
+## 11. Naming conventions
+
+State the naming rules so the codebase stays scannable.
+
+<!-- FILL IN: class suffixes + file casing. Generic starting point: -->
 
 | Suffix | Used for |
 |---|---|
@@ -196,27 +194,24 @@ State class suffixes, file-name casing, and symbol-name rules so contributors do
 | `Repository` | Data-access classes |
 | `Guard` | Auth/permission guards |
 
-- **File names:** kebab-case with explicit suffixes (`<domain>.controller.ts`, `<domain>.service.ts`).
-- **Symbols:** PascalCase classes, camelCase functions/variables. Avoid `Manager`/`Helper`/`Util` as primary suffixes — they signal fuzzy responsibility (see `design-review` anti-patterns).
+File names kebab-case with explicit suffixes (`<domain>.controller.ts`). Avoid `Manager`/`Helper`/`Util` as primary suffixes — they signal fuzzy responsibility (see `design-review` anti-patterns).
 
-## 11. Repo-specific anti-patterns
+## 12. Anti-patterns (don't do these here)
 
-List the mistakes that have actually bitten this codebase, so reviewers catch them on sight.
+<!-- FILL IN: your repo's real, observed anti-patterns. Common candidates worth keeping if they apply: -->
 
-<!-- FILL IN: your repo's real anti-patterns. Generic candidates worth keeping if they apply: -->
+- Unparameterized SQL — always use placeholders; never concatenate user input.
+- Tenant leakage via a missing scope filter — check every query when reviewing repository changes.
+- Skipping the negative/unauthorized test — it's what catches authz regressions.
+- Logging PII — every un-redacted log call is a potential leak point.
+- Letting DTO/response shapes drift from the published API contract (§ 9) — consumers break at runtime, not compile time.
 
-- **Unparameterized SQL** — always use placeholders; never concatenate user input.
-- **Tenant leakage via a missing scope filter** — query-level scoping is the second line of defense after the route guard; check every query when reviewing repository changes.
-- **Skipping the negative test** — the unauthorized/cross-tenant test is what catches authz regressions.
-- **Logging PII** — without automatic redaction, every log call is a potential leak point.
-- **Module load-order coupling** — if module A's migrations depend on module B, document and protect the import order.
+## 13. When to deviate
 
-## 12. When to deviate from these conventions
+No convention is absolute. Small in-scope deviations are fine with a comment explaining why. **Structural** changes (a new module boundary, a new auth mechanism, a new persistence layer, a new public-API/contract shape) are load-bearing decisions — document them as an ADR and cite it here, rather than restating the rationale inline. State the deviation explicitly in the response, name the reason, and propose updating this skill in the same change. NEVER deviate silently.
 
-You may diverge if:
+## Cross-references
 
-- The conventions themselves are the bug being fixed (e.g., introducing validation across the codebase as a deliberate refactor).
-- A user explicitly requests a different approach.
-- An external library forces a different shape.
-
-In all cases: state the deviation explicitly in the response, name the reason, and propose updating this skill in the same change (so the convention set stays current). NEVER deviate silently.
+- Backend stack skills (`nestjs-best-practices`, `nestjs-clean-architecture`, `nestjs-patterns`, `nodejs-best-practices`, `database-transactions`, `db-write-protocol`) — generic advice not specific to this repo.
+- `tdd-workflow`, `design-review`, `plan-mode`, `cross-repo-workspace` — process skills.
+- `documentation-and-adrs` — ADR format and citation flow.

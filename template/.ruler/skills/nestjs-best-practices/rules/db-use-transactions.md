@@ -9,6 +9,8 @@ tags: database, transactions, typeorm, consistency
 
 When multiple database operations must succeed or fail together, wrap them in a transaction. This prevents partial updates that leave your data in an inconsistent state. Use TypeORM's transaction APIs or the DataSource query runner for complex scenarios.
 
+> Canonical transaction discipline (API selection, hard rules like never holding a transaction across external I/O, isolation levels, migration gotchas): the `database-transactions` skill. This rule covers the NestJS/TypeORM specifics — keep the two in sync.
+
 **Incorrect (multiple saves without transaction):**
 
 ```typescript
