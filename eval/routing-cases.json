@@ -1,0 +1,250 @@
+{
+ "comment": "Canonical (prompt → expected discretionary skills) routing cases, scored by a live model. Expected lists name DISCRETIONARY skills only — P3.4 force-fire skills may appear in output and are never penalized. `variants` are paraphrases: a case scores its WORST variant (stability, not just success). `expected: []` cases are NEGATIVE: loading any non-force-fire skill is a false positive.",
+ "cases": [
+  {
+   "id": "multi-statement-db",
+   "prompt": "Implement order checkout: insert the order row and decrement stock across two tables atomically",
+   "expected": [
+    "database-transactions",
+    "db-write-protocol"
+   ],
+   "variants": [
+    "Checkout must write the order AND update inventory counts in one all-or-nothing operation",
+    "Implement a money transfer: debit one account row, credit another — both must commit together"
+   ]
+  },
+  {
+   "id": "single-write",
+   "prompt": "Delete inactive sessions from the database",
+   "expected": [
+    "db-write-protocol"
+   ]
+  },
+  {
+   "id": "nestjs-guard",
+   "prompt": "Add a NestJS guard and an interceptor, plus a provider built with useFactory in a dynamic module",
+   "expected": [
+    "nestjs-patterns"
+   ]
+  },
+  {
+   "id": "nestjs-rules",
+   "prompt": "Review this NestJS module for dependency injection, security, and performance issues",
+   "expected": [
+    "nestjs-best-practices"
+   ]
+  },
+  {
+   "id": "clean-arch",
+   "prompt": "Design a new domain module with presentation, application, domain, and infrastructure layers and a repository port",
+   "expected": [
+    "nestjs-clean-architecture"
+   ],
+   "variants": [
+    "Scaffold a new bounded module: controllers on top, use-cases in the middle, entities and a repository port underneath",
+    "Structure the new billing module with separated layers so the domain never imports the ORM"
+   ]
+  },
+  {
+   "id": "node-defaults",
+   "prompt": "Help me choose a Node.js framework and async patterns for a new backend service",
+   "expected": [
+    "nodejs-best-practices"
+   ]
+  },
+  {
+   "id": "bug-failing-test",
+   "prompt": "This test is failing intermittently in CI — investigate the root cause",
+   "expected": [
+    "bug-investigation"
+   ],
+   "variants": [
+    "CI is red on and off for the same spec — sometimes green, sometimes not. Find out why",
+    "This spec flakes in the pipeline; track down the real cause before touching anything"
+   ]
+  },
+  {
+   "id": "plan-feat",
+   "prompt": "Plan a refactor that splits the chat feature into three smaller modules",
+   "expected": [
+    "plan-mode"
+   ]
+  },
+  {
+   "id": "adr-decision",
+   "prompt": "We need to decide between Zustand and Jotai for the new feature; document the rationale",
+   "expected": [
+    "documentation-and-adrs",
+    "decision-rules"
+   ],
+   "variants": [
+    "Zustand or Jotai for the new feature's state? We need the choice written down with reasons",
+    "Pick between two state libraries and record why, so the decision survives the team"
+   ]
+  },
+  {
+   "id": "ts-generics",
+   "prompt": "Define a type-safe generic hook with conditional return types based on the input shape",
+   "expected": [
+    "typescript-advanced-types"
+   ]
+  },
+  {
+   "id": "async-patterns",
+   "prompt": "Refactor this Promise.all to allow partial failures using Promise.allSettled with AbortSignal",
+   "expected": [
+    "async-error-handling"
+   ]
+  },
+  {
+   "id": "complexity-nested",
+   "prompt": "Flatten the nested conditionals in this function using guard clauses and early returns",
+   "expected": [
+    "cyclomatic-complexity"
+   ]
+  },
+  {
+   "id": "perf-hotpath",
+   "prompt": "Optimize this hot loop for large datasets and high-frequency events",
+   "expected": [
+    "js-performance-patterns"
+   ]
+  },
+  {
+   "id": "refactor-cleanup",
+   "prompt": "Simplify the code I just modified for clarity and consistency, preserving behavior",
+   "expected": [
+    "code-simplifier"
+   ]
+  },
+  {
+   "id": "skill-audit",
+   "prompt": "Review the skill library quality and check for misfiring or overlapping skills",
+   "expected": [
+    "meta-skill-hygiene"
+   ]
+  },
+  {
+   "id": "git-pr",
+   "prompt": "Commit the changes and open a pull request against main",
+   "expected": [
+    "git-workflow"
+   ]
+  },
+  {
+   "id": "pushback",
+   "prompt": "I want to introduce a new state library for this one widget — talk me out of it if that's wrong",
+   "expected": [
+    "pushback-templates",
+    "decision-rules"
+   ]
+  },
+  {
+   "id": "quality-gate",
+   "prompt": "Set up the CI pipeline and pre-commit hooks to run typecheck, lint, and tests on every pull request",
+   "expected": [
+    "quality-gates"
+   ],
+   "variants": [
+    "Wire up GitHub Actions plus a pre-commit hook so lint, types, and tests run before anything merges",
+    "Every PR should be blocked unless typecheck, lint, and the suites pass — set that up"
+   ]
+  },
+  {
+   "id": "rlm",
+   "prompt": "I'm new to this repo — help me understand the chat feature's architecture",
+   "expected": [
+    "rlm-explore"
+   ]
+  },
+  {
+   "id": "cross-repo-feat",
+   "prompt": "Add a /users/me endpoint in this repo that the frontend repo will consume — coordinate the contract shape across both repositories",
+   "expected": [
+    "cross-repo-workspace"
+   ]
+  },
+  {
+   "id": "spec-first",
+   "prompt": "Add CSV export to the reports page — write the spec for it before any code",
+   "expected": [
+    "spec-workflow"
+   ]
+  },
+  {
+   "id": "neg-explain-error",
+   "prompt": "What does this error mean: TypeError: Cannot read properties of undefined (reading 'map')?",
+   "expected": []
+  },
+  {
+   "id": "neg-explain-regex",
+   "prompt": "Explain what this regex does: ^(?=.*[A-Z])(?=.*\\d).{8,}$",
+   "expected": []
+  },
+  {
+   "id": "neg-concept",
+   "prompt": "What's the difference between optimistic and pessimistic locking, conceptually?",
+   "expected": []
+  },
+  {
+   "id": "neg-translate",
+   "prompt": "Translate this code comment to English: // calcula el total de la factura",
+   "expected": []
+  },
+  {
+   "id": "neg-math",
+   "prompt": "If each request takes 120ms, how many can one worker serve per minute?",
+   "expected": []
+  },
+  {
+   "id": "neg-explain-diff",
+   "prompt": "Walk me through what this diff changes, in plain words",
+   "expected": []
+  },
+  {
+   "id": "neg-naming",
+   "prompt": "Is 'UserDataManager' a good class name? Just your opinion",
+   "expected": []
+  },
+  {
+   "id": "neg-history",
+   "prompt": "Who introduced the term 'dependency injection'?",
+   "expected": []
+  },
+  {
+   "id": "conf-protocol-not-transactions",
+   "prompt": "Run a one-line UPDATE to fix this user's email address in the database",
+   "expected": [
+    "db-write-protocol"
+   ]
+  },
+  {
+   "id": "migration-entity",
+   "prompt": "Add an avatarUrl column to the users entity and run the migration against the dev database",
+   "expected": [
+    "db-write-protocol"
+   ]
+  },
+  {
+   "id": "rbac-guard",
+   "prompt": "Design a guard so the DELETE /projects/:id endpoint is restricted to org admins only",
+   "expected": [
+    "nestjs-patterns"
+   ]
+  },
+  {
+   "id": "dto-validation",
+   "prompt": "Review the create-invoice endpoint: add proper DTO validation so malformed payloads are rejected, following nestjs module and security best practices",
+   "expected": [
+    "nestjs-best-practices"
+   ]
+  },
+  {
+   "id": "exception-layering",
+   "prompt": "Restructure the orders domain module so errors map at the boundary and layers respect the dependency rule",
+   "expected": [
+    "nestjs-clean-architecture"
+   ]
+  }
+ ]
+}
