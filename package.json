@@ -1,6 +1,6 @@
 {
   "name": "@tierone/llm-harness-nest",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "LLM agent harness for NestJS projects \u2014 guides (skills, instructions) + sensors (review agents). Installs into .ruler/ via a 3-way-merge-aware CLI.",
   "type": "module",
   "bin": {
